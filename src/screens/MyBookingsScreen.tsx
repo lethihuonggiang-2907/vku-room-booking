@@ -16,6 +16,7 @@ import { RootStackParamList, Booking } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
 import { formatDateVietnamese } from '../utils/dateUtils';
+import { cancelBookingReminder } from '../utils/notificationService';
 import { theme } from '../theme';
 
 type MyBookingsNavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -46,10 +47,14 @@ export const MyBookingsScreen: React.FC = () => {
         {
           text: 'Hủy đặt phòng',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            // Hủy thông báo nhắc nhở đã lên lịch
+            if (booking.notificationId) {
+              await cancelBookingReminder(booking.notificationId);
+            }
             const res = cancelBooking(booking.id);
             if (res.success) {
-              Alert.alert('Thành công', 'Đã hủy đặt phòng thành công!');
+              Alert.alert('Thành công', 'Đã hủy đặt phòng và hủy thông báo nhắc nhở thành công!');
             }
           },
         },

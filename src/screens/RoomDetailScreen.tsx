@@ -17,6 +17,7 @@ import { RootStackParamList, TimeSlotId, TimeSlot } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
 import { TIME_SLOTS } from '../data/timeSlots';
 import { getNext7Days, formatDateVietnamese, isSlotPassed } from '../utils/dateUtils';
+import { scheduleBookingReminder, cancelBookingReminder } from '../utils/notificationService';
 import { Badge } from '../components/Badge';
 import { theme } from '../theme';
 
@@ -74,13 +75,23 @@ export const RoomDetailScreen: React.FC = () => {
     }
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedSlot) {
       Alert.alert('Chưa chọn khung giờ', 'Vui lòng chọn một khung giờ còn trống để đặt phòng.');
       return;
     }
 
-    // Thực hiện đặt phòng ATOMIC qua store
+    // 1. Lên lịch thông báo nhắc nhở 15 phút trước giờ nhận phòng
+    const notificationId = await scheduleBookingReminder({
+      id: `book-${Date.now()}`,
+      roomName: room.name,
+      roomCode: room.roomCode,
+      date: selectedDate,
+      slotLabel: selectedSlot.label,
+      slotId: selectedSlot.id,
+    });
+
+    // 2. Thực hiện đặt phòng ATOMIC qua store
     const result = addBooking({
       roomId: room.id,
       date: selectedDate,
@@ -88,9 +99,14 @@ export const RoomDetailScreen: React.FC = () => {
       slotLabel: selectedSlot.label,
       purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
       attendeesCount: attendees,
+      notificationId,
     });
 
     if (!result.success || !result.booking) {
+      // Hủy thông báo nếu đặt phòng thất bại do xung đột
+      if (notificationId) {
+        await cancelBookingReminder(notificationId);
+      }
       Alert.alert('Xung đột lịch đặt', result.error || 'Đã có lỗi xảy ra khi đặt phòng!');
       return;
     }

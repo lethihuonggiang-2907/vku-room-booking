@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
+import { sendDemoTestNotification } from '../utils/notificationService';
 import { theme } from '../theme';
 
 export const ProfileScreen: React.FC = () => {
+  const [isSendingDemo, setIsSendingDemo] = useState(false);
+
   const currentUser = useBookingStore((state) => state.currentUser);
   const switchUserRole = useBookingStore((state) => state.switchUserRole);
   const bookings = useBookingStore((state) => state.bookings);
@@ -23,6 +28,23 @@ export const ProfileScreen: React.FC = () => {
   const cancelledCount = userBookings.filter((b) => b.status === 'cancelled').length;
 
   const isLecturer = currentUser.role === 'Giảng viên';
+
+  // Handler cho nút demo thông báo 5 giây
+  const handleSendDemoNotification = async () => {
+    try {
+      setIsSendingDemo(true);
+      await sendDemoTestNotification(5);
+      Alert.alert(
+        'Đã lên lịch thông báo Demo!',
+        'Thông báo nhắc nhở nhận phòng sẽ tự động xuất hiện trên màn hình sau 5 giây (kể cả khi bạn khóa màn hình hoặc chuyển sang ứng dụng khác).',
+        [{ text: 'Đã hiểu' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Không thể gửi thông báo', error.message || 'Vui lòng kiểm tra quyền thông báo trong Cài đặt.');
+    } finally {
+      setIsSendingDemo(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -128,6 +150,43 @@ export const ProfileScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* =====================================================================
+            KHU VỰC DEMO: Nút gửi thông báo thử sau 5 giây để quay video báo cáo
+            (Ghi chú: Nút này phục vụ demo chấm điểm, không phải chờ ca học)
+           ===================================================================== */}
+        <View style={styles.demoCard}>
+          <View style={styles.demoHeaderRow}>
+            <View style={styles.demoIconWrap}>
+              <Ionicons name="notifications" size={20} color="#7C3AED" />
+            </View>
+            <View style={styles.demoHeaderTextWrap}>
+              <Text style={styles.demoCardTitle}>Demo Thông Báo Nhắc Phòng</Text>
+              <Text style={styles.demoCardSubtitle}>
+                Dành cho quay video: Nhận thông báo sau 5 giây
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.demoButton, isSendingDemo && styles.demoButtonDisabled]}
+            onPress={handleSendDemoNotification}
+            disabled={isSendingDemo}
+            activeOpacity={0.8}
+          >
+            {isSendingDemo ? (
+              <ActivityIndicator size="small" color={theme.colors.white} />
+            ) : (
+              <>
+                <Ionicons name="timer-outline" size={18} color={theme.colors.white} />
+                <Text style={styles.demoButtonText}>Gửi thông báo thử sau 5 giây</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.demoNoteText}>
+            💡 Nhấn nút, sau đó bạn có thể giữ nguyên app hoặc chuyển sang màn hình khác để thấy thông báo pop-up xuất hiện sau 5 giây.
+          </Text>
         </View>
 
         {/* App Info & Version */}
@@ -302,4 +361,68 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  demoCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    borderWidth: 1.5,
+    borderColor: '#DDD6FE',
+    ...theme.shadows.sm,
+  },
+  demoHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  demoIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  demoHeaderTextWrap: {
+    flex: 1,
+  },
+  demoCardTitle: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: '#6D28D9',
+  },
+  demoCardSubtitle: {
+    fontSize: theme.typography.fontSize.xs,
+    color: '#7C3AED',
+    marginTop: 2,
+  },
+  demoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7C3AED',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.md,
+    minHeight: 46,
+    ...theme.shadows.sm,
+  },
+  demoButtonDisabled: {
+    opacity: 0.6,
+  },
+  demoButtonText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    marginLeft: 6,
+  },
+  demoNoteText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 8,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
 });
+
