@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { RootStackParamList, Room, TimeSlotId } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { useNotifications } from '../hooks/useNotifications';
 import { fetchRoomsApi } from '../api/roomApi';
 import { getCurrentSlotId, isToday } from '../utils/dateUtils';
 import { Header } from '../components/Header';
@@ -29,6 +30,9 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'M
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  // In-app Notifications
+  const { unreadCount } = useNotifications();
 
   // TanStack Query: Lấy danh sách phòng giả lập qua mạng có độ trễ
   const {
@@ -200,6 +204,8 @@ export const HomeScreen: React.FC = () => {
         user={currentUser}
         selectedDate={filters.selectedDate}
         onToggleUserRole={() => switchUserRole()}
+        unreadCount={unreadCount}
+        onPressNotifications={() => navigation.navigate('Notifications')}
       />
 
       {/* 2. Thanh tìm kiếm (có debounce) */}

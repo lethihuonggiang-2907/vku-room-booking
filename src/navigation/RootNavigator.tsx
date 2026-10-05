@@ -10,6 +10,7 @@ import { MyBookingsScreen } from '../screens/MyBookingsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RoomDetailScreen } from '../screens/RoomDetailScreen';
 import { QRCodeModalScreen } from '../screens/QRCodeModalScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { theme } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -96,6 +97,13 @@ export const RootNavigator: React.FC = () => {
           options={{
             presentation: 'modal',
             animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{
+            animation: 'slide_from_right',
           }}
         />
       </Stack.Navigator>

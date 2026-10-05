@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { Badge } from './Badge';
+import { NotificationBell } from './NotificationBell';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { theme } from '../theme';
 
@@ -17,6 +18,8 @@ interface HeaderProps {
   selectedDate: string;
   onToggleUserRole: () => void;
   onOpenProfile?: () => void;
+  unreadCount?: number;
+  onPressNotifications?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   selectedDate,
   onToggleUserRole,
   onOpenProfile,
+  unreadCount = 0,
+  onPressNotifications,
 }) => {
   const isLecturer = user.role === 'Giảng viên';
 
@@ -61,21 +66,31 @@ export const Header: React.FC<HeaderProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Greeting and Selected Date Banner */}
+      {/* Greeting, Notification Bell and Selected Date Banner */}
       <View style={styles.bottomRow}>
-        <TouchableOpacity
-          style={styles.userInfo}
-          onPress={onOpenProfile}
-          activeOpacity={0.7}
-        >
-          <Image source={{ uri: user.avatar }} style={styles.avatar} />
-          <View style={styles.userTextContainer}>
-            <Text style={styles.greetingText}>Xin chào,</Text>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user.name}
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.userSection}>
+          <TouchableOpacity
+            style={styles.userInfo}
+            onPress={onOpenProfile}
+            activeOpacity={0.7}
+          >
+            <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            <View style={styles.userTextContainer}>
+              <Text style={styles.greetingText}>Xin chào,</Text>
+              <Text style={styles.userName} numberOfLines={1}>
+                {user.name}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Chuông thông báo (đặt cạnh thông tin người dùng) */}
+          {onPressNotifications && (
+            <NotificationBell
+              unreadCount={unreadCount}
+              onPress={onPressNotifications}
+            />
+          )}
+        </View>
 
         <View style={styles.dateBadgeContainer}>
           <Ionicons name="calendar" size={13} color={theme.colors.secondary} />
@@ -152,11 +167,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  userInfo: {
+  userSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: theme.spacing.sm,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: theme.spacing.xs,
   },
   avatar: {
     width: 38,
