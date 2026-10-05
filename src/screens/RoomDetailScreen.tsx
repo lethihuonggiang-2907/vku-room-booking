@@ -231,19 +231,22 @@ export const RoomDetailScreen: React.FC = () => {
             {next7Days.map((d) => {
               const isSelected = selectedDate === d.date;
               return (
-                <TouchableOpacity
+                <AppPressable
                   key={d.date}
                   style={[
                     styles.dateItem,
-                    isSelected && styles.dateItemSelected,
                     d.isToday && styles.dateItemToday,
+                    isSelected && styles.dateItemSelected,
                   ]}
                   onPress={() => {
                     setSelectedDate(d.date);
                     setSelectedDateStore(d.date);
                     setSelectedSlot(null); // Reset slot khi đổi ngày
                   }}
-                  activeOpacity={0.7}
+                  scaleTo={0.93}
+                  haptic="selection"
+                  accessibilityRole="button"
+                  accessibilityLabel={`Chọn ngày ${d.dayOfWeek} ngày ${d.dayNumber}`}
                 >
                   <Text
                     style={[
@@ -269,7 +272,15 @@ export const RoomDetailScreen: React.FC = () => {
                   >
                     Th{d.monthNumber}
                   </Text>
-                </TouchableOpacity>
+                  {d.isToday && (
+                    <View
+                      style={[
+                        styles.todayIndicator,
+                        isSelected && styles.todayIndicatorSelected,
+                      ]}
+                    />
+                  )}
+                </AppPressable>
               );
             })}
           </ScrollView>
@@ -294,12 +305,16 @@ export const RoomDetailScreen: React.FC = () => {
               const isDisabled = booked || passed;
               const isSelected = selectedSlot?.id === slot.id;
 
-              let statusText = 'Còn trống';
-              if (booked) statusText = 'Đã có người đặt';
-              else if (passed) statusText = 'Đã qua giờ';
+              // Nhãn theo đúng yêu cầu: "Đã đặt" hoặc "Đã qua", khả dụng: "Còn trống"
+              let statusLabel = 'Còn trống';
+              if (booked) {
+                statusLabel = 'Đã đặt';
+              } else if (passed) {
+                statusLabel = 'Đã qua';
+              }
 
               return (
-                <TouchableOpacity
+                <AppPressable
                   key={slot.id}
                   style={[
                     styles.slotCard,
@@ -310,7 +325,10 @@ export const RoomDetailScreen: React.FC = () => {
                     if (!isDisabled) setSelectedSlot(slot);
                   }}
                   disabled={isDisabled}
-                  activeOpacity={0.8}
+                  scaleTo={0.96}
+                  haptic={isDisabled ? false : 'selection'}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Khung giờ ${slot.label}, trạng thái ${statusLabel}`}
                 >
                   <View style={styles.slotTopRow}>
                     <Text
@@ -322,18 +340,21 @@ export const RoomDetailScreen: React.FC = () => {
                     >
                       {slot.period}
                     </Text>
-                    <View
-                      style={[
-                        styles.slotDot,
-                        {
-                          backgroundColor: isDisabled
-                            ? theme.colors.textMuted
-                            : isSelected
-                            ? theme.colors.white
-                            : theme.colors.success,
-                        },
-                      ]}
-                    />
+                    {isSelected ? (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={theme.colors.white}
+                      />
+                    ) : isDisabled ? (
+                      <Ionicons
+                        name={booked ? 'lock-closed' : 'time'}
+                        size={14}
+                        color={theme.colors.textMuted}
+                      />
+                    ) : (
+                      <View style={styles.slotDotAvailable} />
+                    )}
                   </View>
 
                   <Text
@@ -346,21 +367,21 @@ export const RoomDetailScreen: React.FC = () => {
                     {slot.label}
                   </Text>
 
-                  <Text
-                    style={[
-                      styles.slotStatus,
-                      {
-                        color: isDisabled
-                          ? theme.colors.danger
+                  <View style={styles.slotStatusRow}>
+                    <Text
+                      style={[
+                        styles.slotStatus,
+                        isDisabled
+                          ? styles.slotStatusDisabled
                           : isSelected
-                          ? theme.colors.white
-                          : theme.colors.successDark,
-                      },
-                    ]}
-                  >
-                    {statusText}
-                  </Text>
-                </TouchableOpacity>
+                          ? styles.slotStatusSelected
+                          : styles.slotStatusAvailable,
+                      ]}
+                    >
+                      {statusLabel}
+                    </Text>
+                  </View>
+                </AppPressable>
               );
             })}
           </View>
@@ -453,14 +474,24 @@ export const RoomDetailScreen: React.FC = () => {
           accessibilityLabel="Xác nhận đặt phòng"
         >
           {bookingMutation.isPending ? (
-            <ActivityIndicator size="small" color={theme.colors.white} />
+            <View style={styles.loadingButtonContent}>
+              <ActivityIndicator size="small" color={theme.colors.white} />
+              <Text style={styles.submitButtonText}>Đang xử lý...</Text>
+            </View>
           ) : (
             <>
-              <Text style={styles.submitButtonText}>Xác nhận đặt</Text>
+              <Text
+                style={[
+                  styles.submitButtonText,
+                  !selectedSlot && styles.submitButtonTextDisabled,
+                ]}
+              >
+                Xác nhận đặt
+              </Text>
               <Ionicons
                 name="checkmark-circle"
                 size={18}
-                color={theme.colors.white}
+                color={selectedSlot ? theme.colors.white : '#94A3B8'}
                 style={{ marginLeft: 6 }}
               />
             </>
@@ -636,22 +667,35 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   dateItem: {
-    width: 60,
-    height: 72,
+    width: 62,
+    height: 74,
     borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.surfaceSubtle,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+    position: 'relative',
   },
   dateItemToday: {
     borderColor: theme.colors.primary,
   },
   dateItemSelected: {
     backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    borderColor: theme.colors.primaryDark,
+    ...theme.shadows.sm,
+  },
+  todayIndicator: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: theme.colors.primary,
+    position: 'absolute',
+    bottom: 5,
+  },
+  todayIndicatorSelected: {
+    backgroundColor: theme.colors.white,
   },
   dateDayOfWeek: {
     fontSize: 11,
@@ -692,17 +736,18 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
-    minHeight: 80,
+    minHeight: 84,
     justifyContent: 'space-between',
   },
   slotCardDisabled: {
     backgroundColor: '#F1F5F9',
     borderColor: '#E2E8F0',
-    opacity: 0.6,
+    opacity: 0.65,
   },
   slotCardSelected: {
     backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    borderColor: theme.colors.primaryDark,
+    ...theme.shadows.md,
   },
   slotTopRow: {
     flexDirection: 'row',
@@ -714,10 +759,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
-  slotDot: {
+  slotDotAvailable: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: theme.colors.success,
   },
   slotLabel: {
     fontSize: theme.typography.fontSize.sm,
@@ -725,9 +771,22 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginVertical: 4,
   },
+  slotStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   slotStatus: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  slotStatusAvailable: {
+    color: theme.colors.successDark,
+  },
+  slotStatusSelected: {
+    color: theme.colors.white,
+  },
+  slotStatusDisabled: {
+    color: theme.colors.textMuted,
   },
   textDisabled: {
     color: theme.colors.textMuted,
@@ -844,16 +903,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: theme.borderRadius.lg,
-    minHeight: 46,
-    ...theme.shadows.sm,
+    minHeight: 48,
+    ...theme.shadows.md,
   },
   submitButtonDisabled: {
-    backgroundColor: theme.colors.textMuted,
+    backgroundColor: '#E2E8F0',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   submitButtonText: {
     color: theme.colors.white,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: 'bold',
+  },
+  submitButtonTextDisabled: {
+    color: '#94A3B8',
+  },
+  loadingButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notFoundContainer: {
     flex: 1,
