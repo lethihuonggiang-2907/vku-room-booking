@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -19,6 +21,53 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+interface AnimatedTabIconProps {
+  name: keyof typeof Ionicons.glyphMap;
+  outlineName: keyof typeof Ionicons.glyphMap;
+  focused: boolean;
+  color: string;
+}
+
+const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
+  name,
+  outlineName,
+  focused,
+  color,
+}) => {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1.18 : 1.0, {
+      damping: 12,
+      stiffness: 220,
+    });
+  }, [focused, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Ionicons
+        name={focused ? name : outlineName}
+        size={22}
+        color={color}
+      />
+    </Animated.View>
+  );
+};
+
+const handleTabPress = () => {
+  if (Platform.OS !== 'web') {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // Ignored
+    }
+  }
+};
+
 const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
@@ -34,12 +83,14 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
+        listeners={{ tabPress: handleTabPress }}
         options={{
           tabBarLabel: 'Trang chủ',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={22}
+            <AnimatedTabIcon
+              name="home"
+              outlineName="home-outline"
+              focused={focused}
               color={color}
             />
           ),
@@ -48,12 +99,14 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="MyBookingsTab"
         component={MyBookingsScreen}
+        listeners={{ tabPress: handleTabPress }}
         options={{
           tabBarLabel: 'Lịch của tôi',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'calendar' : 'calendar-outline'}
-              size={22}
+            <AnimatedTabIcon
+              name="calendar"
+              outlineName="calendar-outline"
+              focused={focused}
               color={color}
             />
           ),
@@ -62,12 +115,14 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="ProfileTab"
         component={ProfileScreen}
+        listeners={{ tabPress: handleTabPress }}
         options={{
           tabBarLabel: 'Hồ sơ',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={22}
+            <AnimatedTabIcon
+              name="person"
+              outlineName="person-outline"
+              focused={focused}
               color={color}
             />
           ),
@@ -87,6 +142,9 @@ export const RootNavigator: React.FC = () => {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
+          animationDuration: 280,
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
         }}
       >
         <Stack.Screen name="MainTabs" component={MainTabs} />
@@ -95,6 +153,7 @@ export const RootNavigator: React.FC = () => {
           component={RoomDetailScreen}
           options={{
             animation: 'slide_from_right',
+            animationDuration: 280,
           }}
         />
         <Stack.Screen
@@ -103,6 +162,7 @@ export const RootNavigator: React.FC = () => {
           options={{
             presentation: 'modal',
             animation: 'slide_from_bottom',
+            animationDuration: 320,
           }}
         />
         <Stack.Screen

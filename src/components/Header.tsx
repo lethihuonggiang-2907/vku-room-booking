@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { Badge } from './Badge';
 import { NotificationBell } from './NotificationBell';
+import { AppPressable } from './AppPressable';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { theme } from '../theme';
 
@@ -49,10 +50,11 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
 
         {/* Quick Role Toggle Button for Pairing/Testing */}
-        <TouchableOpacity
+        <AppPressable
           style={styles.roleToggleButton}
           onPress={onToggleUserRole}
-          activeOpacity={0.8}
+          scaleTo={0.93}
+          accessibilityRole="button"
           accessibilityLabel={`Đổi vai trò. Hiện tại là ${user.role}`}
         >
           <Ionicons
@@ -63,16 +65,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Text style={styles.roleToggleText}>
             {user.role} (Đổi)
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
       </View>
 
       {/* Greeting, Notification Bell and Selected Date Banner */}
       <View style={styles.bottomRow}>
         <View style={styles.userSection}>
-          <TouchableOpacity
+          <AppPressable
             style={styles.userInfo}
             onPress={onOpenProfile}
-            activeOpacity={0.7}
+            scaleTo={0.96}
+            accessibilityRole="button"
+            accessibilityLabel={`Hồ sơ người dùng ${user.name}`}
           >
             <Image source={{ uri: user.avatar }} style={styles.avatar} />
             <View style={styles.userTextContainer}>
@@ -81,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {user.name}
               </Text>
             </View>
-          </TouchableOpacity>
+          </AppPressable>
 
           {/* Chuông thông báo (đặt cạnh thông tin người dùng) */}
           {onPressNotifications && (
