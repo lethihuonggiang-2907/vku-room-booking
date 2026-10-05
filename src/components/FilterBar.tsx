@@ -39,7 +39,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Nút mở Modal bộ lọc nâng cao */}
+        {/* Nút mở Modal bộ lọc nâng cao: icon và chữ cùng hàng */}
         <AppPressable
           style={[
             styles.filterButton,
@@ -47,6 +47,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           ]}
           onPress={onOpenFilterModal}
           scaleTo={0.95}
+          accessibilityRole="button"
           accessibilityLabel="Bộ lọc nâng cao"
         >
           <Ionicons
@@ -59,6 +60,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               styles.filterButtonText,
               activeFilterCount > 0 && styles.filterButtonTextActive,
             ]}
+            numberOfLines={1}
           >
             Lọc
           </Text>
@@ -71,7 +73,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         <View style={styles.divider} />
 
-        {/* Các chip chọn Tòa nhà */}
+        {/* Các chip chọn Tòa nhà: có nền, viền, bo tròn, padding ngang, flexShrink: 0, không bẻ dòng */}
         {BUILDINGS.map((b) => {
           const isSelected = selectedBuilding === b;
           return (
@@ -80,12 +82,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               style={[styles.chip, isSelected && styles.chipSelected]}
               onPress={() => onSelectBuilding(b)}
               scaleTo={0.94}
+              accessibilityRole="button"
+              accessibilityLabel={`Lọc theo ${buildingLabels[b]}`}
             >
               <Text
                 style={[
                   styles.chipText,
                   isSelected && styles.chipTextSelected,
                 ]}
+                numberOfLines={1}
               >
                 {buildingLabels[b]}
               </Text>
@@ -104,6 +109,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
     alignItems: 'center',
+    flexDirection: 'row',
   },
   filterButton: {
     flexDirection: 'row',
@@ -113,9 +119,10 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
     borderRadius: theme.borderRadius.full,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     minHeight: 38,
     marginRight: theme.spacing.sm,
+    flexShrink: 0,
   },
   filterButtonActive: {
     backgroundColor: theme.colors.primary,
@@ -125,7 +132,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.primary,
-    marginLeft: 4,
+    marginLeft: 5,
   },
   filterButtonTextActive: {
     color: theme.colors.white,
@@ -149,22 +156,26 @@ const styles = StyleSheet.create({
     height: 24,
     backgroundColor: theme.colors.border,
     marginRight: theme.spacing.sm,
+    flexShrink: 0,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 15,
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginRight: theme.spacing.sm,
     minHeight: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexShrink: 0,
+    ...theme.shadows.sm,
   },
   chipSelected: {
     backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    borderColor: theme.colors.primaryDark,
   },
   chipText: {
     fontSize: theme.typography.fontSize.sm,
@@ -173,6 +184,6 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: theme.colors.white,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: theme.typography.fontWeight.bold,
   },
 });

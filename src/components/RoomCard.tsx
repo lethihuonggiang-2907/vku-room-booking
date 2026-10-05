@@ -237,10 +237,15 @@ const styles = StyleSheet.create({
     height: 165,
     backgroundColor: theme.colors.surfaceSubtle,
     position: 'relative',
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
   },
   imageGradientOverlay: {
     position: 'absolute',
