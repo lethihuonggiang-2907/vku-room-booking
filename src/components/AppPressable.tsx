@@ -2,9 +2,9 @@ import React, { useCallback } from 'react';
 import {
   Pressable,
   PressableProps,
-  PressableStateCallbackType,
   StyleProp,
   ViewStyle,
+  StyleSheet,
   GestureResponderEvent,
   Platform,
 } from 'react-native';
@@ -14,8 +14,6 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface AppPressableProps extends PressableProps {
   /**
@@ -54,7 +52,7 @@ export const AppPressable: React.FC<AppPressableProps> = ({
         await Haptics.impactAsync(haptic);
       }
     } catch {
-      // Haptics không khả dụng trên một số thiết bị cũ hoặc môi trường web
+      // Haptics không khả dụng trên một số thiết bị hoặc web
     }
   }, [disabled, haptic]);
 
@@ -91,18 +89,24 @@ export const AppPressable: React.FC<AppPressableProps> = ({
     transform: [{ scale: scale.value }],
   }));
 
+  // Kế thừa các thuộc tính flex/width từ style (nếu là object/array) để Animated.View co giãn đúng với container
+  const flattened = typeof style === 'function' ? null : StyleSheet.flatten(style);
+  const layoutWrapperStyle: ViewStyle = {};
+  if (flattened?.flex !== undefined) layoutWrapperStyle.flex = flattened.flex;
+  if (flattened?.width !== undefined) layoutWrapperStyle.width = flattened.width;
+  if (flattened?.alignSelf !== undefined) layoutWrapperStyle.alignSelf = flattened.alignSelf;
+
   return (
-    <AnimatedPressable
-      disabled={disabled}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={(state: PressableStateCallbackType) => {
-        const resolvedStyle = typeof style === 'function' ? style(state) : style;
-        return [resolvedStyle, animatedStyle] as any;
-      }}
-      {...rest}
-    >
-      {children}
-    </AnimatedPressable>
+    <Animated.View style={[layoutWrapperStyle, animatedStyle]}>
+      <Pressable
+        disabled={disabled}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={style}
+        {...rest}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
   );
 };
