@@ -20,6 +20,7 @@ import { useBookingStore } from '../store/useBookingStore';
 import { TIME_SLOTS } from '../data/timeSlots';
 import { getNext7Days, formatDateVietnamese, isSlotPassed } from '../utils/dateUtils';
 import { scheduleBookingReminder, cancelBookingReminder } from '../utils/notificationService';
+import { useNotifications } from '../hooks/useNotifications';
 import { createBookingApi } from '../api/roomApi';
 import { Badge } from '../components/Badge';
 import { theme } from '../theme';
@@ -31,6 +32,8 @@ export const RoomDetailScreen: React.FC = () => {
   const navigation = useNavigation<RoomDetailNavProp>();
   const route = useRoute<RoomDetailRouteProp>();
   const { roomId } = route.params;
+
+  const { notifyBookingConfirmed } = useNotifications();
 
   const rooms = useBookingStore((state) => state.rooms);
   const currentUser = useBookingStore((state) => state.currentUser);
@@ -139,7 +142,10 @@ export const RoomDetailScreen: React.FC = () => {
         return;
       }
 
-      // 4. Mở màn hình QR Code Check-in
+      // 4. Thêm thông báo vào Hộp thông báo trong ứng dụng
+      notifyBookingConfirmed(result.booking);
+
+      // 5. Mở màn hình QR Code Check-in
       navigation.navigate('QRCodeModal', { bookingId: result.booking.id });
     } catch (error: any) {
       Alert.alert('Lỗi máy chủ', error?.message || 'Không thể kết nối đến máy chủ đặt phòng!');

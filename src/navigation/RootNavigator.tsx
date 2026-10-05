@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,10 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { RoomDetailScreen } from '../screens/RoomDetailScreen';
 import { QRCodeModalScreen } from '../screens/QRCodeModalScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { useNotificationLifecycle } from '../hooks/useNotificationLifecycle';
 import { theme } from '../theme';
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -75,8 +78,11 @@ const MainTabs: React.FC = () => {
 };
 
 export const RootNavigator: React.FC = () => {
+  // Đồng bộ nhắc nhở check-in khi app mở và lắng nghe thông báo hệ thống
+  useNotificationLifecycle();
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

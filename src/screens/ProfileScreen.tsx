@@ -14,10 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
 import { sendDemoTestNotification } from '../utils/notificationService';
+import { useNotifications } from '../hooks/useNotifications';
 import { theme } from '../theme';
 
 export const ProfileScreen: React.FC = () => {
   const [isSendingDemo, setIsSendingDemo] = useState(false);
+  const { notifyDemoReceived } = useNotifications();
 
   const currentUser = useBookingStore((state) => state.currentUser);
   const switchUserRole = useBookingStore((state) => state.switchUserRole);
@@ -34,6 +36,14 @@ export const ProfileScreen: React.FC = () => {
     try {
       setIsSendingDemo(true);
       await sendDemoTestNotification(5);
+
+      // Thêm vào Hộp thông báo in-app đúng lúc thông báo hệ thống xuất hiện sau 5 giây
+      setTimeout(() => {
+        notifyDemoReceived(
+          'Đây là thông báo thử nghiệm sau 5 giây. Phòng Lab A.201 của bạn sắp bắt đầu ca học. Mở app để quét mã QR!'
+        );
+      }, 5000);
+
       Alert.alert(
         'Đã lên lịch thông báo Demo!',
         'Thông báo nhắc nhở nhận phòng sẽ tự động xuất hiện trên màn hình sau 5 giây (kể cả khi bạn khóa màn hình hoặc chuyển sang ứng dụng khác).',

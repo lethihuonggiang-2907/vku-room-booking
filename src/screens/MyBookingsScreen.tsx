@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Booking } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { useNotifications } from '../hooks/useNotifications';
 import { Badge } from '../components/Badge';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { cancelBookingReminder } from '../utils/notificationService';
@@ -24,6 +25,8 @@ type MyBookingsNavProp = NativeStackNavigationProp<RootStackParamList>;
 export const MyBookingsScreen: React.FC = () => {
   const navigation = useNavigation<MyBookingsNavProp>();
   const [filterTab, setFilterTab] = useState<'all' | 'confirmed' | 'cancelled'>('all');
+
+  const { notifyBookingCancelled } = useNotifications();
 
   const currentUser = useBookingStore((state) => state.currentUser);
   const bookings = useBookingStore((state) => state.bookings);
@@ -54,6 +57,8 @@ export const MyBookingsScreen: React.FC = () => {
             }
             const res = cancelBooking(booking.id);
             if (res.success) {
+              // Thêm thông báo hủy vào Hộp thông báo in-app
+              notifyBookingCancelled(booking);
               Alert.alert('Thành công', 'Đã hủy đặt phòng và hủy thông báo nhắc nhở thành công!');
             }
           },
