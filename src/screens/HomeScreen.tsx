@@ -3,10 +3,9 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   StyleSheet,
   StatusBar,
-  ActivityIndicator,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +21,7 @@ import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { FilterModal } from '../components/FilterModal';
 import { RoomCard } from '../components/RoomCard';
+import { RoomCardSkeleton } from '../components/RoomCardSkeleton';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
 
@@ -223,19 +223,23 @@ export const HomeScreen: React.FC = () => {
         activeFilterCount={activeFilterCount}
       />
 
-      {/* 4. Danh sách phòng học với TanStack Query Loading / Error / Data */}
+      {/* 4. Danh sách phòng học với TanStack Query Loading (Skeleton) / Error / Data */}
       {isLoading && !isRefetching ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingTitle}>Đang tải dữ liệu phòng học...</Text>
-          <Text style={styles.loadingSubtitle}>
-            Đang kết nối giả lập API qua TanStack Query (300-500ms)
-          </Text>
-        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: theme.spacing.sm, paddingBottom: 80 }}
+        >
+          <RoomCardSkeleton />
+          <RoomCardSkeleton />
+          <RoomCardSkeleton />
+        </ScrollView>
       ) : isError ? (
         <EmptyState
-          title="Không thể tải dữ liệu phòng"
-          description="Đã xảy ra lỗi khi gọi API lấy danh sách phòng học. Vui lòng bấm nút bên dưới để thử lại!"
+          title="Không thể tải dữ liệu phòng học"
+          description="Đã xảy ra sự cố khi kết nối dữ liệu phòng học qua TanStack Query. Vui lòng bấm thử lại!"
+          iconName="alert-circle-outline"
+          iconColor={theme.colors.danger}
+          actionIcon="refresh-outline"
           actionText="Thử tải lại"
           onAction={() => refetch()}
         />
@@ -249,8 +253,12 @@ export const HomeScreen: React.FC = () => {
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={
             <EmptyState
-              title="Không có phòng nào phù hợp"
+              title="Không tìm thấy phòng phù hợp"
               description="Hãy thử đổi tòa nhà, giảm bớt điều kiện thiết bị hoặc chọn ngày khác xem sao!"
+              iconName="search-outline"
+              iconColor={theme.colors.primary}
+              actionIcon="refresh-outline"
+              actionText="Xóa tất cả bộ lọc"
               onAction={resetFilters}
             />
           }

@@ -1,39 +1,52 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { AppPressable } from './AppPressable';
 import { theme } from '../theme';
 
 interface EmptyStateProps {
   title?: string;
   description?: string;
   actionText?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
+  actionIcon?: keyof typeof Ionicons.glyphMap;
   onAction?: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title = 'Không tìm thấy phòng phù hợp',
   description = 'Vui lòng thử tìm kiếm bằng từ khóa khác hoặc điều chỉnh lại các điều kiện lọc.',
-  actionText = 'Xóa tất cả bộ lọc',
+  actionText,
+  iconName = 'search-outline',
+  iconColor = theme.colors.primary,
+  actionIcon = 'refresh-outline',
   onAction,
 }) => {
   return (
-    <View style={styles.container}>
-      <View style={styles.iconCircle}>
-        <Ionicons name="search-outline" size={36} color={theme.colors.primary} />
+    <Animated.View
+      entering={FadeInDown.duration(350).springify()}
+      style={styles.container}
+    >
+      <View style={[styles.iconCircle, { backgroundColor: `${iconColor}18` }]}>
+        <Ionicons name={iconName} size={36} color={iconColor} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
-      {onAction && (
-        <TouchableOpacity
+      {onAction && actionText && (
+        <AppPressable
           style={styles.actionButton}
           onPress={onAction}
-          activeOpacity={0.8}
+          scaleTo={0.95}
+          accessibilityRole="button"
+          accessibilityLabel={actionText}
         >
-          <Ionicons name="refresh-outline" size={16} color={theme.colors.white} />
+          <Ionicons name={actionIcon} size={16} color={theme.colors.white} />
           <Text style={styles.actionButtonText}>{actionText}</Text>
-        </TouchableOpacity>
+        </AppPressable>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -44,13 +57,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: theme.colors.primaryLight,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: theme.spacing.lg,
+    ...theme.shadows.sm,
   },
   title: {
     fontSize: theme.typography.fontSize.lg,
@@ -65,16 +78,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: theme.spacing.xl,
+    maxWidth: 320,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.primary,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     borderRadius: theme.borderRadius.lg,
     minHeight: theme.minTouchTarget,
-    ...theme.shadows.sm,
+    ...theme.shadows.md,
   },
   actionButtonText: {
     color: theme.colors.white,

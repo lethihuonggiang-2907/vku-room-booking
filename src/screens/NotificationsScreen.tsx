@@ -16,6 +16,7 @@ import { RootStackParamList, AppNotification, AppNotificationType } from '../typ
 import { useNotifications, formatRelativeTime } from '../hooks/useNotifications';
 import { useBookingStore } from '../store/useBookingStore';
 import { EmptyState } from '../components/EmptyState';
+import { AppPressable } from '../components/AppPressable';
 import { theme } from '../theme';
 
 type NotificationsNavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -187,14 +188,16 @@ export const NotificationsScreen: React.FC = () => {
       {/* Header điều hướng */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
+          <AppPressable
             style={styles.backButton}
             onPress={() => navigation.goBack()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            scaleTo={0.9}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
+          </AppPressable>
           <View style={styles.titleContainer}>
             <Text style={styles.headerTitle}>Hộp thông báo</Text>
             {unreadCount > 0 && (
@@ -208,27 +211,31 @@ export const NotificationsScreen: React.FC = () => {
         {/* Nút hành động nhanh */}
         <View style={styles.headerActions}>
           {unreadCount > 0 && (
-            <TouchableOpacity
+            <AppPressable
               style={styles.headerActionButton}
               onPress={markAllAsRead}
-              activeOpacity={0.7}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              accessibilityLabel="Đọc tất cả"
             >
               <Ionicons name="checkmark-done" size={16} color={theme.colors.primary} />
               <Text style={styles.headerActionText}>Đọc tất cả</Text>
-            </TouchableOpacity>
+            </AppPressable>
           )}
 
           {notifications.length > 0 && (
-            <TouchableOpacity
+            <AppPressable
               style={styles.headerActionButton}
               onPress={handleClearAll}
-              activeOpacity={0.7}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              accessibilityLabel="Xóa tất cả"
             >
               <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
               <Text style={[styles.headerActionText, { color: theme.colors.danger }]}>
                 Xóa hết
               </Text>
-            </TouchableOpacity>
+            </AppPressable>
           )}
         </View>
       </View>
@@ -242,8 +249,11 @@ export const NotificationsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <EmptyState
-            title="Chưa có thông báo nào"
+            title="Không có thông báo mới"
             description="Các thông báo xác nhận đặt phòng, nhắc nhở check-in và thông tin hệ thống VKU sẽ hiển thị tại đây."
+            iconName="notifications-off-outline"
+            iconColor={theme.colors.primary}
+            actionIcon="home-outline"
             actionText="Quay về Trang chủ"
             onAction={() => navigation.goBack()}
           />

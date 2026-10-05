@@ -17,6 +17,7 @@ import { useBookingStore } from '../store/useBookingStore';
 import { useNotifications } from '../hooks/useNotifications';
 import { Badge } from '../components/Badge';
 import { AppPressable } from '../components/AppPressable';
+import { EmptyState } from '../components/EmptyState';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { cancelBookingReminder } from '../utils/notificationService';
 import { theme } from '../theme';
@@ -209,13 +210,21 @@ export const MyBookingsScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-clear-outline" size={56} color={theme.colors.textMuted} />
-            <Text style={styles.emptyTitle}>Chưa có lịch đặt phòng nào</Text>
-            <Text style={styles.emptySubtitle}>
-              Khám phá danh sách các phòng học tại VKU và đặt phòng nhanh chóng.
-            </Text>
-          </View>
+          <EmptyState
+            title={
+              filterTab === 'confirmed'
+                ? 'Không có lịch đặt đã xác nhận'
+                : filterTab === 'cancelled'
+                ? 'Không có lịch đặt nào bị hủy'
+                : 'Chưa có lịch đặt phòng nào'
+            }
+            description="Duyệt danh sách các phòng học hiện đại tại VKU và đặt chỗ cho buổi học hoặc thảo luận nhóm ngay hôm nay!"
+            iconName="calendar-clear-outline"
+            iconColor={theme.colors.primary}
+            actionIcon="search-outline"
+            actionText="Khám phá phòng học"
+            onAction={() => navigation.navigate('MainTabs' as any, { screen: 'HomeTab' })}
+          />
         }
       />
     </SafeAreaView>
