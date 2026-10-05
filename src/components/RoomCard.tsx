@@ -15,12 +15,14 @@ interface RoomCardProps {
   room: Room;
   selectedDate: string;
   availableSlotsCount: number;
+  isCurrentSlotOccupied?: boolean | null;
   onPress: (roomId: string) => void;
 }
 
 export const RoomCard: React.FC<RoomCardProps> = memo(({
   room,
   availableSlotsCount,
+  isCurrentSlotOccupied,
   onPress,
 }) => {
   const isAllBooked = availableSlotsCount === 0;
@@ -75,23 +77,54 @@ export const RoomCard: React.FC<RoomCardProps> = memo(({
             size="sm"
           />
 
-          <Badge
-            label={isAllBooked ? 'Đã kín lịch' : `Còn ${availableSlotsCount}/4 khung giờ`}
-            variant={isAllBooked ? 'danger' : 'success'}
-            size="sm"
-            icon={
-              <Ionicons
-                name={isAllBooked ? 'close-circle' : 'time-outline'}
-                size={12}
-                color={isAllBooked ? theme.colors.dangerDark : theme.colors.successDark}
-              />
-            }
-          />
+          {isCurrentSlotOccupied !== undefined && isCurrentSlotOccupied !== null ? (
+            <Badge
+              label={isCurrentSlotOccupied ? 'Occupied' : 'Available Now'}
+              variant={isCurrentSlotOccupied ? 'danger' : 'success'}
+              size="sm"
+              icon={
+                <Ionicons
+                  name={isCurrentSlotOccupied ? 'close-circle' : 'checkmark-circle'}
+                  size={12}
+                  color={isCurrentSlotOccupied ? theme.colors.dangerDark : theme.colors.successDark}
+                />
+              }
+            />
+          ) : (
+            <Badge
+              label={isAllBooked ? 'Đã kín lịch' : `Còn ${availableSlotsCount}/4 khung giờ`}
+              variant={isAllBooked ? 'danger' : 'success'}
+              size="sm"
+              icon={
+                <Ionicons
+                  name={isAllBooked ? 'close-circle' : 'time-outline'}
+                  size={12}
+                  color={isAllBooked ? theme.colors.dangerDark : theme.colors.successDark}
+                />
+              }
+            />
+          )}
         </View>
 
-        {/* Room Type Tag on bottom of image */}
-        <View style={styles.bottomImageBadge}>
-          <Text style={styles.roomTypeTagText}>{room.type}</Text>
+        {/* Room Type Tag on bottom left and slots badge on bottom right */}
+        <View style={styles.bottomImageRow}>
+          <View style={styles.bottomImageBadge}>
+            <Text style={styles.roomTypeTagText}>{room.type}</Text>
+          </View>
+
+          {isCurrentSlotOccupied !== undefined && isCurrentSlotOccupied !== null && (
+            <View style={[styles.bottomSlotBadge, isAllBooked && styles.bottomSlotBadgeDanger]}>
+              <Ionicons
+                name="time-outline"
+                size={11}
+                color={theme.colors.white}
+                style={{ marginRight: 3 }}
+              />
+              <Text style={styles.bottomSlotText}>
+                {isAllBooked ? 'Kín cả ngày' : `Còn ${availableSlotsCount}/4 slot`}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -206,14 +239,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  bottomImageBadge: {
+  bottomImageRow: {
     position: 'absolute',
     bottom: theme.spacing.sm,
     left: theme.spacing.md,
+    right: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bottomImageBadge: {
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     borderRadius: theme.borderRadius.sm,
     paddingVertical: 3,
     paddingHorizontal: 8,
+  },
+  bottomSlotBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  bottomSlotBadgeDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+  },
+  bottomSlotText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   roomTypeTagText: {
     color: theme.colors.white,

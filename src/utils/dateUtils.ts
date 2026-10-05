@@ -102,6 +102,40 @@ export function isSlotPassed(dateStr: string, slotStartTime: string): boolean {
 }
 
 /**
+ * Kiểm tra xem ngày truyền vào có phải hôm nay không
+ */
+export function isToday(dateStr: string): boolean {
+  return dateStr === getTodayDateString();
+}
+
+/**
+ * Lấy khung giờ đang diễn ra ở thời điểm hiện tại (nếu có)
+ */
+export function getCurrentSlotId(): { slotId: 'slot_1' | 'slot_2' | 'slot_3' | 'slot_4'; label: string } | null {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // 07:30 = 450, 09:30 = 570
+  if (currentMinutes >= 450 && currentMinutes < 570) {
+    return { slotId: 'slot_1', label: '07:30 - 09:30' };
+  }
+  // 09:30 = 570, 11:30 = 690
+  if (currentMinutes >= 570 && currentMinutes < 690) {
+    return { slotId: 'slot_2', label: '09:30 - 11:30' };
+  }
+  // 13:00 = 780, 15:00 = 900
+  if (currentMinutes >= 780 && currentMinutes < 900) {
+    return { slotId: 'slot_3', label: '13:00 - 15:00' };
+  }
+  // 15:00 = 900, 17:00 = 1020
+  if (currentMinutes >= 900 && currentMinutes < 1020) {
+    return { slotId: 'slot_4', label: '15:00 - 17:00' };
+  }
+
+  return null;
+}
+
+/**
  * Sinh mã đặt chỗ ngẫu nhiên duy nhất
  */
 export function generateBookingCode(roomCode: string): string {
@@ -109,3 +143,4 @@ export function generateBookingCode(roomCode: string): string {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   return `VKU-${cleanCode}-${randomNum}`;
 }
+

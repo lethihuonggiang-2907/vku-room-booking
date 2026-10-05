@@ -33,6 +33,7 @@ export const RoomDetailScreen: React.FC = () => {
   const isSlotBooked = useBookingStore((state) => state.isSlotBooked);
   const addBooking = useBookingStore((state) => state.addBooking);
   const initialDate = useBookingStore((state) => state.filters.selectedDate);
+  const setSelectedDateStore = useBookingStore((state) => state.setSelectedDate);
 
   const room = rooms.find((r) => r.id === roomId);
 
@@ -185,6 +186,7 @@ export const RoomDetailScreen: React.FC = () => {
                   ]}
                   onPress={() => {
                     setSelectedDate(d.date);
+                    setSelectedDateStore(d.date);
                     setSelectedSlot(null); // Reset slot khi đổi ngày
                   }}
                   activeOpacity={0.7}

@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Room } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { getCurrentSlotId, isToday } from '../utils/dateUtils';
 import { Header } from '../components/Header';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -42,6 +43,10 @@ export const HomeScreen: React.FC = () => {
   // Filtered rooms
   const filteredRooms = getFilteredRooms();
 
+  // Khung giờ hiện tại (nếu đang trong giờ học và ngày chọn là hôm nay)
+  const currentSlotInfo = useMemo(() => getCurrentSlotId(), []);
+  const isSelectedToday = useMemo(() => isToday(filters.selectedDate), [filters.selectedDate]);
+
   // Đếm số lượng bộ lọc đang kích hoạt ngoài building
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -68,20 +73,31 @@ export const HomeScreen: React.FC = () => {
     [filters.selectedDate, isSlotBooked]
   );
 
+  // Tính trạng thái phòng tức thời ngay tại thời điểm hiện tại: Occupied hay Available
+  const getRealtimeOccupiedStatus = useCallback(
+    (roomId: string): boolean | null => {
+      if (!isSelectedToday || !currentSlotInfo) return null;
+      return isSlotBooked(roomId, filters.selectedDate, currentSlotInfo.slotId);
+    },
+    [isSelectedToday, currentSlotInfo, filters.selectedDate, isSlotBooked]
+  );
+
   // Render từng thẻ phòng (được tối ưu hóa bằng React.memo)
   const renderItem = useCallback(
     ({ item }: { item: Room }) => {
       const availableCount = getAvailableSlotsCount(item.id);
+      const isOccupiedNow = getRealtimeOccupiedStatus(item.id);
       return (
         <RoomCard
           room={item}
           selectedDate={filters.selectedDate}
           availableSlotsCount={availableCount}
+          isCurrentSlotOccupied={isOccupiedNow}
           onPress={handleRoomPress}
         />
       );
     },
-    [filters.selectedDate, getAvailableSlotsCount, handleRoomPress]
+    [filters.selectedDate, getAvailableSlotsCount, getRealtimeOccupiedStatus, handleRoomPress]
   );
 
   const keyExtractor = useCallback((item: Room) => item.id, []);
