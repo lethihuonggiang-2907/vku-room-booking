@@ -10,7 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,6 +32,7 @@ type RoomDetailNavProp = NativeStackNavigationProp<RootStackParamList>;
 export const RoomDetailScreen: React.FC = () => {
   const navigation = useNavigation<RoomDetailNavProp>();
   const route = useRoute<RoomDetailRouteProp>();
+  const insets = useSafeAreaInsets();
   const { roomId } = route.params;
 
   const { notifyBookingConfirmed } = useNotifications();
@@ -161,16 +162,18 @@ export const RoomDetailScreen: React.FC = () => {
           <Image source={{ uri: room.image }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroOverlay} />
 
-          {/* Floating Back Button */}
+          {/* Floating Back Button (Touch target >= 44px) */}
           <SafeAreaView edges={['top']} style={styles.floatingHeader}>
-            <TouchableOpacity
+            <AppPressable
               style={styles.circleButton}
               onPress={() => navigation.goBack()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              scaleTo={0.9}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
               accessibilityLabel="Quay lại"
             >
               <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
-            </TouchableOpacity>
+            </AppPressable>
           </SafeAreaView>
 
           {/* Bottom Hero Badges */}
@@ -448,11 +451,11 @@ export const RoomDetailScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 + insets.bottom }} />
       </ScrollView>
 
-      {/* Floating Bottom Bar (CTA) */}
-      <View style={styles.bottomBar}>
+      {/* Floating Bottom Bar (CTA with Safe Area) */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 8, theme.spacing.md) }]}>
         <View style={styles.bottomBarInfo}>
           <Text style={styles.bottomBarSlot}>
             {selectedSlot ? selectedSlot.label : 'Chưa chọn khung giờ'}
@@ -539,10 +542,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   circleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,

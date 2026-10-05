@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
+import { AppPressable } from '../components/AppPressable';
 import { sendDemoTestNotification } from '../utils/notificationService';
 import { useNotifications } from '../hooks/useNotifications';
 import { theme } from '../theme';
@@ -91,16 +92,18 @@ export const ProfileScreen: React.FC = () => {
           </View>
 
           {/* Role switcher toggle button */}
-          <TouchableOpacity
+          <AppPressable
             style={styles.switchButton}
             onPress={() => switchUserRole()}
-            activeOpacity={0.8}
+            scaleTo={0.96}
+            accessibilityRole="button"
+            accessibilityLabel={`Chuyển sang vai trò ${isLecturer ? 'Sinh viên' : 'Giảng viên'}`}
           >
             <Ionicons name="swap-horizontal" size={18} color={theme.colors.white} />
             <Text style={styles.switchButtonText}>
               Chuyển sang vai trò {isLecturer ? 'Sinh viên' : 'Giảng viên'}
             </Text>
-          </TouchableOpacity>
+          </AppPressable>
         </View>
 
         {/* Stats Row */}
@@ -179,11 +182,13 @@ export const ProfileScreen: React.FC = () => {
             </View>
           </View>
 
-          <TouchableOpacity
+          <AppPressable
             style={[styles.demoButton, isSendingDemo && styles.demoButtonDisabled]}
             onPress={handleSendDemoNotification}
             disabled={isSendingDemo}
-            activeOpacity={0.8}
+            scaleTo={0.96}
+            accessibilityRole="button"
+            accessibilityLabel="Gửi thông báo thử sau 5 giây"
           >
             {isSendingDemo ? (
               <ActivityIndicator size="small" color={theme.colors.white} />
@@ -193,7 +198,7 @@ export const ProfileScreen: React.FC = () => {
                 <Text style={styles.demoButtonText}>Gửi thông báo thử sau 5 giây</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AppPressable>
           <Text style={styles.demoNoteText}>
             💡 Nhấn nút, sau đó bạn có thể giữ nguyên app hoặc chuyển sang màn hình khác để thấy thông báo pop-up xuất hiện sau 5 giây.
           </Text>
