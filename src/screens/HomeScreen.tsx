@@ -5,12 +5,16 @@ import {
   FlatList,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList, Room } from '../types';
+import { useQuery } from '@tanstack/react-query';
+import { RootStackParamList, Room, TimeSlotId } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { fetchRoomsApi } from '../api/roomApi';
 import { getCurrentSlotId, isToday } from '../utils/dateUtils';
 import { Header } from '../components/Header';
 import { SearchBar } from '../components/SearchBar';
@@ -26,7 +30,19 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [filterModalVisible, setFilterModalVisible] = useState(false);
 
-  // Zustand Store
+  // TanStack Query: Lấy danh sách phòng giả lập qua mạng có độ trễ
+  const {
+    data: remoteRooms = [],
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    queryKey: ['rooms'],
+    queryFn: fetchRoomsApi,
+  });
+
+  // Zustand Store: Quản lý trạng thái client (phiên, bộ lọc, lượt đặt)
   const currentUser = useBookingStore((state) => state.currentUser);
   const switchUserRole = useBookingStore((state) => state.switchUserRole);
   const filters = useBookingStore((state) => state.filters);
@@ -37,11 +53,73 @@ export const HomeScreen: React.FC = () => {
   const setSelectedDate = useBookingStore((state) => state.setSelectedDate);
   const setSelectedStatus = useBookingStore((state) => state.setSelectedStatus);
   const resetFilters = useBookingStore((state) => state.resetFilters);
-  const getFilteredRooms = useBookingStore((state) => state.getFilteredRooms);
   const isSlotBooked = useBookingStore((state) => state.isSlotBooked);
 
-  // Filtered rooms
-  const filteredRooms = getFilteredRooms();
+  // Kết hợp danh sách phòng từ TanStack Query và bộ lọc client từ Zustand
+  const filteredRooms = useMemo(() => {
+    const {
+      searchQuery,
+      selectedBuilding,
+      minCapacity,
+      selectedEquipments,
+      selectedDate,
+      selectedStatus,
+    } = filters;
+
+    return remoteRooms.filter((room) => {
+      // 1. Tìm theo từ khóa (tên phòng, mã phòng, loại phòng, mô tả)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchName = room.name.toLowerCase().includes(query);
+        const matchCode = room.roomCode.toLowerCase().includes(query);
+        const matchType = room.type.toLowerCase().includes(query);
+        const matchDesc = room.description.toLowerCase().includes(query);
+        if (!matchName && !matchCode && !matchType && !matchDesc) {
+          return false;
+        }
+      }
+
+      // 2. Lọc theo tòa nhà
+      if (selectedBuilding !== 'ALL' && room.building !== selectedBuilding) {
+        return false;
+      }
+
+      // 3. Lọc theo sức chứa tối thiểu
+      if (minCapacity !== null && room.capacity < minCapacity) {
+        return false;
+      }
+
+      // 4. Lọc theo thiết bị (phải có tất cả thiết bị đã chọn)
+      if (selectedEquipments.length > 0) {
+        const hasAllEquipments = selectedEquipments.every((eq) =>
+          room.equipment.includes(eq)
+        );
+        if (!hasAllEquipments) {
+          return false;
+        }
+      }
+
+      // 5. Lọc theo trạng thái
+      if (selectedStatus !== 'ALL') {
+        const slots: TimeSlotId[] = ['slot_1', 'slot_2', 'slot_3', 'slot_4'];
+        const bookedSlotsCount = slots.filter((slot) =>
+          isSlotBooked(room.id, selectedDate, slot)
+        ).length;
+
+        const isAllBooked = bookedSlotsCount === slots.length;
+        const hasAvailableSlot = bookedSlotsCount < slots.length;
+
+        if (selectedStatus === 'AVAILABLE' && !hasAvailableSlot) {
+          return false;
+        }
+        if (selectedStatus === 'BOOKED' && !isAllBooked) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [remoteRooms, filters, isSlotBooked]);
 
   // Khung giờ hiện tại (nếu đang trong giờ học và ngày chọn là hôm nay)
   const currentSlotInfo = useMemo(() => getCurrentSlotId(), []);
@@ -138,26 +216,45 @@ export const HomeScreen: React.FC = () => {
         activeFilterCount={activeFilterCount}
       />
 
-      {/* 4. Danh sách phòng học (FlatList tối ưu 60fps) */}
-      <FlatList
-        data={filteredRooms}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={
-          <EmptyState
-            title="Không có phòng nào phù hợp"
-            description="Hãy thử đổi tòa nhà, giảm bớt điều kiện thiết bị hoặc chọn ngày khác xem sao!"
-            onAction={resetFilters}
-          />
-        }
-        contentContainerStyle={styles.listContent}
-        initialNumToRender={6}
-        maxToRenderPerBatch={8}
-        windowSize={5}
-        removeClippedSubviews={true}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* 4. Danh sách phòng học với TanStack Query Loading / Error / Data */}
+      {isLoading && !isRefetching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingTitle}>Đang tải dữ liệu phòng học...</Text>
+          <Text style={styles.loadingSubtitle}>
+            Đang kết nối giả lập API qua TanStack Query (300-500ms)
+          </Text>
+        </View>
+      ) : isError ? (
+        <EmptyState
+          title="Không thể tải dữ liệu phòng"
+          description="Đã xảy ra lỗi khi gọi API lấy danh sách phòng học. Vui lòng bấm nút bên dưới để thử lại!"
+          actionText="Thử tải lại"
+          onAction={() => refetch()}
+        />
+      ) : (
+        <FlatList
+          data={filteredRooms}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          refreshing={isRefetching}
+          onRefresh={refetch}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={
+            <EmptyState
+              title="Không có phòng nào phù hợp"
+              description="Hãy thử đổi tòa nhà, giảm bớt điều kiện thiết bị hoặc chọn ngày khác xem sao!"
+              onAction={resetFilters}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={true}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Modal bộ lọc toàn diện */}
       <FilterModal
@@ -196,5 +293,23 @@ const styles = StyleSheet.create({
   resultsCountBold: {
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.primary,
+  },
+  loadingContainer: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xl,
+  },
+  loadingTitle: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+    marginTop: theme.spacing.md,
+  },
+  loadingSubtitle: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

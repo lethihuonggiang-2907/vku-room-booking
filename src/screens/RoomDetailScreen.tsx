@@ -8,16 +8,19 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMutation } from '@tanstack/react-query';
 import { RootStackParamList, TimeSlotId, TimeSlot } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
 import { TIME_SLOTS } from '../data/timeSlots';
 import { getNext7Days, formatDateVietnamese, isSlotPassed } from '../utils/dateUtils';
 import { scheduleBookingReminder, cancelBookingReminder } from '../utils/notificationService';
+import { createBookingApi } from '../api/roomApi';
 import { Badge } from '../components/Badge';
 import { theme } from '../theme';
 
@@ -43,6 +46,11 @@ export const RoomDetailScreen: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [purpose, setPurpose] = useState<string>('');
   const [attendees, setAttendees] = useState<number>(2);
+
+  // TanStack Query: useMutation cho thao tác đặt phòng giả lập backend
+  const bookingMutation = useMutation({
+    mutationFn: createBookingApi,
+  });
 
   if (!room) {
     return (
@@ -81,38 +89,61 @@ export const RoomDetailScreen: React.FC = () => {
       return;
     }
 
-    // 1. Lên lịch thông báo nhắc nhở 15 phút trước giờ nhận phòng
-    const notificationId = await scheduleBookingReminder({
-      id: `book-${Date.now()}`,
-      roomName: room.name,
-      roomCode: room.roomCode,
-      date: selectedDate,
-      slotLabel: selectedSlot.label,
-      slotId: selectedSlot.id,
-    });
+    try {
+      // 1. Gọi API đặt phòng giả lập Backend qua TanStack Query useMutation
+      const apiResponse = await bookingMutation.mutateAsync({
+        roomId: room.id,
+        date: selectedDate,
+        slotId: selectedSlot.id,
+        slotLabel: selectedSlot.label,
+        purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
+        attendeesCount: attendees,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userCode: currentUser.code,
+        userRole: currentUser.role,
+      });
 
-    // 2. Thực hiện đặt phòng ATOMIC qua store
-    const result = addBooking({
-      roomId: room.id,
-      date: selectedDate,
-      slotId: selectedSlot.id,
-      slotLabel: selectedSlot.label,
-      purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
-      attendeesCount: attendees,
-      notificationId,
-    });
-
-    if (!result.success || !result.booking) {
-      // Hủy thông báo nếu đặt phòng thất bại do xung đột
-      if (notificationId) {
-        await cancelBookingReminder(notificationId);
+      if (!apiResponse.success || !apiResponse.data) {
+        Alert.alert('Lỗi đặt phòng', apiResponse.message || 'Không thể tạo lượt đặt phòng!');
+        return;
       }
-      Alert.alert('Xung đột lịch đặt', result.error || 'Đã có lỗi xảy ra khi đặt phòng!');
-      return;
-    }
 
-    // Đặt thành công -> Mở màn hình QR Code Check-in
-    navigation.navigate('QRCodeModal', { bookingId: result.booking.id });
+      // 2. Lên lịch thông báo nhắc nhở 15 phút trước giờ nhận phòng
+      const notificationId = await scheduleBookingReminder({
+        id: apiResponse.data.bookingId,
+        roomName: room.name,
+        roomCode: room.roomCode,
+        date: selectedDate,
+        slotLabel: selectedSlot.label,
+        slotId: selectedSlot.id,
+      });
+
+      // 3. Cập nhật ATOMIC vào Zustand Store để lưu client-state bền vững (AsyncStorage)
+      const result = addBooking({
+        roomId: room.id,
+        date: selectedDate,
+        slotId: selectedSlot.id,
+        slotLabel: selectedSlot.label,
+        purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
+        attendeesCount: attendees,
+        notificationId,
+      });
+
+      if (!result.success || !result.booking) {
+        // Hủy thông báo nếu đặt phòng thất bại do xung đột
+        if (notificationId) {
+          await cancelBookingReminder(notificationId);
+        }
+        Alert.alert('Xung đột lịch đặt', result.error || 'Đã có lỗi xảy ra khi đặt phòng!');
+        return;
+      }
+
+      // 4. Mở màn hình QR Code Check-in
+      navigation.navigate('QRCodeModal', { bookingId: result.booking.id });
+    } catch (error: any) {
+      Alert.alert('Lỗi máy chủ', error?.message || 'Không thể kết nối đến máy chủ đặt phòng!');
+    }
   };
 
   return (
@@ -406,14 +437,25 @@ export const RoomDetailScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            !selectedSlot && styles.submitButtonDisabled,
+            (!selectedSlot || bookingMutation.isPending) && styles.submitButtonDisabled,
           ]}
           onPress={handleBooking}
-          disabled={!selectedSlot}
+          disabled={!selectedSlot || bookingMutation.isPending}
           activeOpacity={0.8}
         >
-          <Text style={styles.submitButtonText}>Xác nhận đặt</Text>
-          <Ionicons name="checkmark-circle" size={18} color={theme.colors.white} style={{ marginLeft: 6 }} />
+          {bookingMutation.isPending ? (
+            <ActivityIndicator size="small" color={theme.colors.white} />
+          ) : (
+            <>
+              <Text style={styles.submitButtonText}>Xác nhận đặt</Text>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={theme.colors.white}
+                style={{ marginLeft: 6 }}
+              />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>
