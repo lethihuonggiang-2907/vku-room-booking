@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: theme.spacing.lg,
+    paddingBottom: 90,
   },
   bookingCard: {
     backgroundColor: theme.colors.surface,
@@ -357,7 +358,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.danger,
-    minHeight: 40,
+    minHeight: 44,
   },
   cancelBtnText: {
     color: theme.colors.danger,
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: theme.borderRadius.md,
-    minHeight: 40,
+    minHeight: 44,
     ...theme.shadows.sm,
   },
   qrBtnText: {
