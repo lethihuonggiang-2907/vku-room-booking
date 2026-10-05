@@ -3,17 +3,18 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { ZoomIn, FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
+import { AppPressable } from '../components/AppPressable';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { theme } from '../theme';
 
@@ -32,12 +33,13 @@ export const QRCodeModalScreen: React.FC = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Không tìm thấy thông tin đặt chỗ!</Text>
-          <TouchableOpacity
+          <AppPressable
             style={styles.closeButton}
             onPress={() => navigation.goBack()}
+            scaleTo={0.95}
           >
             <Text style={styles.closeButtonText}>Quay lại</Text>
-          </TouchableOpacity>
+          </AppPressable>
         </View>
       </SafeAreaView>
     );
@@ -63,6 +65,8 @@ export const QRCodeModalScreen: React.FC = () => {
     }
   };
 
+  const isConfirmed = booking.status === 'confirmed';
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView
@@ -72,17 +76,36 @@ export const QRCodeModalScreen: React.FC = () => {
         {/* Header Close */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Mã Check-in Phòng</Text>
-          <TouchableOpacity
+          <AppPressable
             onPress={() => navigation.goBack()}
             style={styles.closeIconBtn}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Đóng modal"
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+          </AppPressable>
         </View>
 
-        {/* QR Card */}
-        <View style={styles.card}>
+        {/* QR Card with Reanimated Zoom & Slide */}
+        <Animated.View
+          entering={ZoomIn.duration(360).springify().damping(15)}
+          style={styles.card}
+        >
+          {/* Animated Success Checkmark Badge (Hiệu ứng tích xanh khi đặt phòng thành công) */}
+          {isConfirmed && (
+            <Animated.View
+              entering={ZoomIn.delay(180).duration(420).springify().damping(12)}
+              style={styles.successCheckmarkWrapper}
+            >
+              <View style={styles.successCircle}>
+                <Ionicons name="checkmark" size={32} color={theme.colors.white} />
+              </View>
+              <Text style={styles.successHeading}>Đặt phòng thành công!</Text>
+            </Animated.View>
+          )}
+
           {/* Status Badge */}
           <View style={styles.badgeRow}>
             <Badge
@@ -90,8 +113,8 @@ export const QRCodeModalScreen: React.FC = () => {
               variant={`building${booking.building}` as any}
             />
             <Badge
-              label={booking.status === 'confirmed' ? 'Đã xác nhận' : 'Đã hủy'}
-              variant={booking.status === 'confirmed' ? 'success' : 'danger'}
+              label={isConfirmed ? 'Đã xác nhận' : 'Đã hủy'}
+              variant={isConfirmed ? 'success' : 'danger'}
             />
           </View>
 
@@ -99,21 +122,28 @@ export const QRCodeModalScreen: React.FC = () => {
           <Text style={styles.bookingCodeLabel}>Mã đặt phòng:</Text>
           <Text style={styles.bookingCode}>{booking.bookingCode}</Text>
 
-          {/* QR Code Container */}
-          <View style={styles.qrContainer}>
+          {/* QR Code Container with subtle fade */}
+          <Animated.View
+            entering={FadeIn.delay(250).duration(300)}
+            style={styles.qrContainer}
+          >
             <QRCode
               value={qrPayload}
               size={180}
               color={theme.colors.text}
               backgroundColor={theme.colors.white}
             />
-          </View>
+          </Animated.View>
+
           <Text style={styles.scanInstruction}>
             Xuất trình mã này cho Cán bộ quản lý phòng học hoặc quét tại cửa phòng để mở khóa
           </Text>
 
           {/* Information summary */}
-          <View style={styles.summaryContainer}>
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(320)}
+            style={styles.summaryContainer}
+          >
             <View style={styles.summaryRow}>
               <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
               <Text style={styles.summaryLabel}>Ngày:</Text>
@@ -139,28 +169,32 @@ export const QRCodeModalScreen: React.FC = () => {
               <Text style={styles.summaryLabel}>Số người:</Text>
               <Text style={styles.summaryValue}>{booking.attendeesCount} người</Text>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Share and Done Buttons */}
           <View style={styles.buttonRow}>
-            <TouchableOpacity
+            <AppPressable
               style={styles.shareBtn}
               onPress={handleShare}
-              activeOpacity={0.8}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              accessibilityLabel="Chia sẻ mã đặt phòng"
             >
               <Ionicons name="share-social-outline" size={18} color={theme.colors.primary} />
               <Text style={styles.shareBtnText}>Chia sẻ</Text>
-            </TouchableOpacity>
+            </AppPressable>
 
-            <TouchableOpacity
+            <AppPressable
               style={styles.doneBtn}
               onPress={() => navigation.goBack()}
-              activeOpacity={0.8}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              accessibilityLabel="Hoàn tất"
             >
               <Text style={styles.doneBtnText}>Xong</Text>
-            </TouchableOpacity>
+            </AppPressable>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -198,6 +232,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     ...theme.shadows.lg,
+  },
+  successCheckmarkWrapper: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  successCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+    marginBottom: 8,
+  },
+  successHeading: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.successDark,
   },
   badgeRow: {
     flexDirection: 'row',

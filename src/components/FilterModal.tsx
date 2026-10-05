@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Building, Equipment, FilterState } from '../types';
 import { ALL_EQUIPMENT, BUILDINGS, CAPACITY_OPTIONS } from '../data/timeSlots';
 import { getNext7Days } from '../utils/dateUtils';
+import { AppPressable } from './AppPressable';
 import { theme } from '../theme';
 
 interface FilterModalProps {
@@ -300,24 +301,28 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
           {/* Footer Actions */}
           <View style={styles.footer}>
-            <TouchableOpacity
+            <AppPressable
               style={styles.resetButton}
               onPress={onResetFilters}
-              activeOpacity={0.7}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              accessibilityLabel="Xóa bộ lọc"
             >
               <Ionicons name="refresh-outline" size={18} color={theme.colors.textSecondary} />
               <Text style={styles.resetButtonText}>Xóa bộ lọc</Text>
-            </TouchableOpacity>
+            </AppPressable>
 
-            <TouchableOpacity
+            <AppPressable
               style={styles.applyButton}
               onPress={onClose}
-              activeOpacity={0.8}
+              scaleTo={0.96}
+              accessibilityRole="button"
+              accessibilityLabel={`Xem ${totalFilteredCount} phòng`}
             >
               <Text style={styles.applyButtonText}>
                 Xem {totalFilteredCount} phòng
               </Text>
-            </TouchableOpacity>
+            </AppPressable>
           </View>
         </View>
       </View>
