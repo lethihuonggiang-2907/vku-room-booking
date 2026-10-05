@@ -23,6 +23,7 @@ import { scheduleBookingReminder, cancelBookingReminder } from '../utils/notific
 import { useNotifications } from '../hooks/useNotifications';
 import { createBookingApi } from '../api/roomApi';
 import { Badge } from '../components/Badge';
+import { AppPressable } from '../components/AppPressable';
 import { theme } from '../theme';
 
 type RoomDetailRouteProp = RouteProp<RootStackParamList, 'RoomDetail'>;
@@ -440,14 +441,16 @@ export const RoomDetailScreen: React.FC = () => {
           </Text>
         </View>
 
-        <TouchableOpacity
+        <AppPressable
           style={[
             styles.submitButton,
             (!selectedSlot || bookingMutation.isPending) && styles.submitButtonDisabled,
           ]}
           onPress={handleBooking}
           disabled={!selectedSlot || bookingMutation.isPending}
-          activeOpacity={0.8}
+          scaleTo={0.96}
+          accessibilityRole="button"
+          accessibilityLabel="Xác nhận đặt phòng"
         >
           {bookingMutation.isPending ? (
             <ActivityIndicator size="small" color={theme.colors.white} />
@@ -462,7 +465,7 @@ export const RoomDetailScreen: React.FC = () => {
               />
             </>
           )}
-        </TouchableOpacity>
+        </AppPressable>
       </View>
     </View>
   );

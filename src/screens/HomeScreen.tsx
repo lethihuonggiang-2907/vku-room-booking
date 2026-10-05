@@ -166,7 +166,7 @@ export const HomeScreen: React.FC = () => {
 
   // Render từng thẻ phòng (được tối ưu hóa bằng React.memo)
   const renderItem = useCallback(
-    ({ item }: { item: Room }) => {
+    ({ item, index }: { item: Room; index: number }) => {
       const availableCount = getAvailableSlotsCount(item.id);
       const isOccupiedNow = getRealtimeOccupiedStatus(item.id);
       return (
@@ -175,6 +175,7 @@ export const HomeScreen: React.FC = () => {
           selectedDate={filters.selectedDate}
           availableSlotsCount={availableCount}
           isCurrentSlotOccupied={isOccupiedNow}
+          index={index}
           onPress={handleRoomPress}
         />
       );

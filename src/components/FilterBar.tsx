@@ -3,12 +3,12 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Building } from '../types';
 import { BUILDINGS } from '../data/timeSlots';
+import { AppPressable } from './AppPressable';
 import { theme } from '../theme';
 
 interface FilterBarProps {
@@ -40,13 +40,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         contentContainerStyle={styles.scrollContent}
       >
         {/* Nút mở Modal bộ lọc nâng cao */}
-        <TouchableOpacity
+        <AppPressable
           style={[
             styles.filterButton,
             activeFilterCount > 0 && styles.filterButtonActive,
           ]}
           onPress={onOpenFilterModal}
-          activeOpacity={0.7}
+          scaleTo={0.95}
           accessibilityLabel="Bộ lọc nâng cao"
         >
           <Ionicons
@@ -67,7 +67,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <Text style={styles.badgeCountText}>{activeFilterCount}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </AppPressable>
 
         <View style={styles.divider} />
 
@@ -75,11 +75,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         {BUILDINGS.map((b) => {
           const isSelected = selectedBuilding === b;
           return (
-            <TouchableOpacity
+            <AppPressable
               key={b}
               style={[styles.chip, isSelected && styles.chipSelected]}
               onPress={() => onSelectBuilding(b)}
-              activeOpacity={0.7}
+              scaleTo={0.94}
             >
               <Text
                 style={[
@@ -89,7 +89,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               >
                 {buildingLabels[b]}
               </Text>
-            </TouchableOpacity>
+            </AppPressable>
           );
         })}
       </ScrollView>

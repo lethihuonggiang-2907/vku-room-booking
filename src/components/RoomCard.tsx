@@ -4,11 +4,12 @@ import {
   Text,
   Image,
   StyleSheet,
-  TouchableOpacity,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Room } from '../types';
 import { Badge } from './Badge';
+import { AppPressable } from './AppPressable';
 import { theme } from '../theme';
 
 interface RoomCardProps {
@@ -16,6 +17,7 @@ interface RoomCardProps {
   selectedDate: string;
   availableSlotsCount: number;
   isCurrentSlotOccupied?: boolean | null;
+  index?: number;
   onPress: (roomId: string) => void;
 }
 
@@ -23,6 +25,7 @@ export const RoomCard: React.FC<RoomCardProps> = memo(({
   room,
   availableSlotsCount,
   isCurrentSlotOccupied,
+  index = 0,
   onPress,
 }) => {
   const isAllBooked = availableSlotsCount === 0;
@@ -57,8 +60,16 @@ export const RoomCard: React.FC<RoomCardProps> = memo(({
     }
   };
 
-  return (
-    <View style={styles.card}>
+  const isEligibleForAnimation = index < 8;
+
+  const cardContent = (
+    <AppPressable
+      style={styles.card}
+      onPress={() => onPress(room.id)}
+      scaleTo={0.98}
+      accessibilityRole="button"
+      accessibilityLabel={`Xem và đặt ${room.name}`}
+    >
       {/* Top Image & Floating Badges */}
       <View style={styles.imageContainer}>
         <Image
@@ -175,15 +186,11 @@ export const RoomCard: React.FC<RoomCardProps> = memo(({
             <Text style={styles.ratingText}>{room.rating ?? '5.0'}</Text>
           </View>
 
-          <TouchableOpacity
+          <View
             style={[
               styles.actionButton,
               isAllBooked && styles.actionButtonDisabled,
             ]}
-            onPress={() => onPress(room.id)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`Xem và đặt ${room.name}`}
           >
             <Text style={styles.actionButtonText}>
               {isAllBooked ? 'Xem lịch kín' : 'Xem & Đặt phòng'}
@@ -194,11 +201,24 @@ export const RoomCard: React.FC<RoomCardProps> = memo(({
               color={theme.colors.white}
               style={styles.chevronIcon}
             />
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    </AppPressable>
   );
+
+  if (isEligibleForAnimation) {
+    return (
+      <Animated.View
+        entering={FadeInDown.duration(320).delay(index * 45)}
+        style={styles.animatedWrapper}
+      >
+        {cardContent}
+      </Animated.View>
+    );
+  }
+
+  return <View style={styles.animatedWrapper}>{cardContent}</View>;
 });
 
 const styles = StyleSheet.create({
@@ -385,5 +405,8 @@ const styles = StyleSheet.create({
   },
   chevronIcon: {
     marginLeft: 4,
+  },
+  animatedWrapper: {
+    width: '100%',
   },
 });

@@ -16,6 +16,7 @@ import { RootStackParamList, Booking } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
 import { useNotifications } from '../hooks/useNotifications';
 import { Badge } from '../components/Badge';
+import { AppPressable } from '../components/AppPressable';
 import { formatDateVietnamese } from '../utils/dateUtils';
 import { cancelBookingReminder } from '../utils/notificationService';
 import { theme } from '../theme';
@@ -121,23 +122,27 @@ export const MyBookingsScreen: React.FC = () => {
         <View style={styles.actionRow}>
           {isConfirmed ? (
             <>
-              <TouchableOpacity
+              <AppPressable
                 style={styles.cancelBtn}
                 onPress={() => handleCancelBooking(item)}
-                activeOpacity={0.7}
+                scaleTo={0.95}
+                accessibilityRole="button"
+                accessibilityLabel="Hủy đặt phòng"
               >
                 <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
                 <Text style={styles.cancelBtnText}>Hủy đặt</Text>
-              </TouchableOpacity>
+              </AppPressable>
 
-              <TouchableOpacity
+              <AppPressable
                 style={styles.qrBtn}
                 onPress={() => handleShowQRCode(item.id)}
-                activeOpacity={0.8}
+                scaleTo={0.95}
+                accessibilityRole="button"
+                accessibilityLabel="Xem mã QR nhận phòng"
               >
                 <Ionicons name="qr-code-outline" size={16} color={theme.colors.white} />
                 <Text style={styles.qrBtnText}>Xem mã QR</Text>
-              </TouchableOpacity>
+              </AppPressable>
             </>
           ) : (
             <View style={styles.cancelledBanner}>
@@ -161,36 +166,39 @@ export const MyBookingsScreen: React.FC = () => {
 
       {/* Tabs Filter */}
       <View style={styles.tabBar}>
-        <TouchableOpacity
+        <AppPressable
           style={[styles.tabItem, filterTab === 'all' && styles.tabItemActive]}
           onPress={() => setFilterTab('all')}
+          scaleTo={0.95}
         >
           <Text style={[styles.tabText, filterTab === 'all' && styles.tabTextActive]}>
             Tất cả ({bookings.filter((b) => b.userId === currentUser.id).length})
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
 
-        <TouchableOpacity
+        <AppPressable
           style={[styles.tabItem, filterTab === 'confirmed' && styles.tabItemActive]}
           onPress={() => setFilterTab('confirmed')}
+          scaleTo={0.95}
         >
           <Text style={[styles.tabText, filterTab === 'confirmed' && styles.tabTextActive]}>
             Đã xác nhận (
             {bookings.filter((b) => b.userId === currentUser.id && b.status === 'confirmed').length}
             )
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
 
-        <TouchableOpacity
+        <AppPressable
           style={[styles.tabItem, filterTab === 'cancelled' && styles.tabItemActive]}
           onPress={() => setFilterTab('cancelled')}
+          scaleTo={0.95}
         >
           <Text style={[styles.tabText, filterTab === 'cancelled' && styles.tabTextActive]}>
             Đã hủy (
             {bookings.filter((b) => b.userId === currentUser.id && b.status === 'cancelled').length}
             )
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
       </View>
 
       {/* List */}
