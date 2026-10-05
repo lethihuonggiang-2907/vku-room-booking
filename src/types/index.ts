@@ -78,12 +78,29 @@ export interface FilterState {
   selectedStatus: 'ALL' | 'AVAILABLE' | 'BOOKED';
 }
 
+export type AppNotificationType =
+  | 'booking_confirmed'
+  | 'booking_cancelled'
+  | 'checkin_reminder'
+  | 'demo';
+
+export interface AppNotification {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  content: string;
+  bookingId?: string;
+  createdAt: string; // ISO string
+  isRead: boolean;
+}
+
 // Navigation types
 export type RootStackParamList = {
   MainTabs: undefined;
   RoomDetail: { roomId: string };
   BookingSuccess: { bookingId: string };
   QRCodeModal: { bookingId: string };
+  Notifications: undefined;
 };
 
 export type MainTabParamList = {
