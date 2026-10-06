@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
   signOut,
   onAuthStateChanged,
   deleteUser,
@@ -329,7 +330,11 @@ export class FirebaseAuthService implements AuthService {
 
       let userCredential;
       try {
-        userCredential = await signInWithPopup(auth, provider);
+        userCredential = await signInWithPopup(
+          auth,
+          provider,
+          browserPopupRedirectResolver
+        );
       } catch (err) {
         throw new Error(translateFirebaseError(err));
       }

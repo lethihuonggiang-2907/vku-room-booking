@@ -5,6 +5,7 @@ import {
   initializeAuth,
   getAuth,
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   Auth,
 } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
@@ -50,9 +51,10 @@ if (isFirebaseConfigured()) {
     // 2. Khởi tạo Firebase Auth với cơ chế lưu phiên (Persistence) phù hợp
     try {
       if (Platform.OS === 'web') {
-        // Trên nền tảng Web: sử dụng browserLocalPersistence
+        // Trên nền tảng Web: sử dụng browserLocalPersistence và browserPopupRedirectResolver để hỗ trợ signInWithPopup
         authInstance = initializeAuth(appInstance, {
           persistence: browserLocalPersistence,
+          popupRedirectResolver: browserPopupRedirectResolver,
         });
       } else {
         // Trên thiết bị di động (React Native iOS/Android trong Expo Go):
