@@ -52,10 +52,9 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const authService: AuthService = getAuthService();
-      // Đăng ký xong tự động đăng nhập (trả về user và lưu phiên)
-      const user = await authService.register(dto);
-      set({ user, isLoading: false, error: null });
-      useBookingStore.setState({ currentUser: user });
+      // Đăng ký xong KHÔNG tự đăng nhập (chuyển về LoginScreen để người dùng tự đăng nhập)
+      await authService.register(dto);
+      set({ isLoading: false, error: null });
       return true;
     } catch (err: unknown) {
       const message =

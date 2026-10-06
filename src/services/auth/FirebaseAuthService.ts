@@ -75,6 +75,8 @@ export const translateFirebaseError = (error: unknown): string => {
  * Hoạt động mượt mà trên Expo Go (iOS, Android) và Web.
  */
 export class FirebaseAuthService implements AuthService {
+  private isRegistering = false;
+
   private getAuthInstance() {
     const auth = getFirebaseAuth();
     if (!auth) {
@@ -101,6 +103,7 @@ export class FirebaseAuthService implements AuthService {
    * 2. Tạo tài khoản trong Firebase Authentication (createUserWithEmailAndPassword).
    * 3. Lưu hồ sơ người dùng vào Firestore collection 'users' với ID là uid.
    * 4. Nếu lưu Firestore bị lỗi, tự động xóa (rollback) tài khoản Auth vừa tạo để tránh mồ côi.
+   * 5. Sau khi lưu thành công, lập tức gọi signOut() để không tự động đăng nhập vào app.
    */
   async register(dto: RegisterDTO): Promise<User> {
     // Ràng buộc bảo mật: Chế độ Firebase không cho client tự cấp quyền admin
@@ -118,6 +121,7 @@ export class FirebaseAuthService implements AuthService {
     const assignedAvatar =
       dto.avatar || DEFAULT_AVATARS[dto.role] || DEFAULT_AVATARS.student;
 
+    this.isRegistering = true;
     let userCredential;
     try {
       userCredential = await createUserWithEmailAndPassword(
@@ -125,73 +129,87 @@ export class FirebaseAuthService implements AuthService {
         normalizedEmail,
         dto.password
       );
-    } catch (err) {
-      throw new Error(translateFirebaseError(err));
-    }
 
-    const uid = userCredential.user.uid;
+      const uid = userCredential.user.uid;
 
-    // Cập nhật tên hiển thị trên Auth profile
-    try {
-      await updateProfile(userCredential.user, {
-        displayName: dto.name.trim(),
-      });
-    } catch {
-      // Tiếp tục nếu cập nhật display name không thành công
-    }
-
-    // Chuẩn bị dữ liệu hồ sơ Firestore theo đúng đặc tả
-    const profileData = {
-      uid,
-      name: dto.name.trim(),
-      email: normalizedEmail,
-      role: dto.role,
-      schoolName: dto.schoolName?.trim() || DEFAULT_SCHOOL_NAME,
-      department: dto.department,
-      identifierCode: cleanIdentifier,
-      code: cleanIdentifier,
-      className: dto.role === 'student' ? dto.className?.trim() || '' : '',
-      academicYear: dto.role === 'student' ? dto.academicYear?.trim() || '' : '',
-      academicDegree: dto.role === 'lecturer' ? dto.academicDegree?.trim() || '' : '',
-      authProvider: 'email',
-      avatar: assignedAvatar,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Ghi hồ sơ vào Firestore users/{uid}
-    try {
-      await setDoc(doc(db, 'users', uid), profileData);
-    } catch (firestoreErr) {
-      // NGUY CƠ: Nếu ghi Firestore thất bại, tài khoản Auth sẽ bị mồ côi (không có hồ sơ)
-      // XỬ LÝ: Tự động rollback tài khoản Auth và thông báo lỗi rõ ràng
+      // Cập nhật tên hiển thị trên Auth profile
       try {
-        await deleteUser(userCredential.user);
-      } catch (deleteErr) {
-        console.warn('[FirebaseAuthService] Không thể xóa user mồ côi sau lỗi Firestore:', deleteErr);
+        await updateProfile(userCredential.user, {
+          displayName: dto.name.trim(),
+        });
+      } catch {
+        // Tiếp tục nếu cập nhật display name không thành công
       }
 
-      throw new Error(
-        `Lỗi khi lưu hồ sơ người dùng vào Firestore: ${translateFirebaseError(
-          firestoreErr
-        )}. Tài khoản chưa được tạo hoàn tất, vui lòng thử lại!`
-      );
-    }
+      // Chuẩn bị dữ liệu hồ sơ Firestore theo đúng đặc tả
+      const profileData = {
+        uid,
+        name: dto.name.trim(),
+        email: normalizedEmail,
+        role: dto.role,
+        schoolName: dto.schoolName?.trim() || DEFAULT_SCHOOL_NAME,
+        department: dto.department,
+        identifierCode: cleanIdentifier,
+        code: cleanIdentifier,
+        className: dto.role === 'student' ? dto.className?.trim() || '' : '',
+        academicYear: dto.role === 'student' ? dto.academicYear?.trim() || '' : '',
+        academicDegree: dto.role === 'lecturer' ? dto.academicDegree?.trim() || '' : '',
+        authProvider: 'email',
+        avatar: assignedAvatar,
+        createdAt: new Date().toISOString(),
+      };
 
-    return {
-      id: uid,
-      name: profileData.name,
-      email: profileData.email,
-      role: profileData.role,
-      schoolName: profileData.schoolName,
-      department: profileData.department,
-      identifierCode: profileData.identifierCode,
-      code: profileData.code,
-      className: profileData.className || undefined,
-      academicYear: profileData.academicYear || undefined,
-      academicDegree: profileData.academicDegree || undefined,
-      authProvider: 'email',
-      avatar: profileData.avatar,
-    };
+      // Ghi hồ sơ vào Firestore users/{uid}
+      try {
+        await setDoc(doc(db, 'users', uid), profileData);
+      } catch (firestoreErr) {
+        // NGUY CƠ: Nếu ghi Firestore thất bại, tài khoản Auth sẽ bị mồ côi (không có hồ sơ)
+        // XỬ LÝ: Tự động rollback tài khoản Auth và thông báo lỗi rõ ràng
+        try {
+          await deleteUser(userCredential.user);
+        } catch (deleteErr) {
+          console.warn('[FirebaseAuthService] Không thể xóa user mồ côi sau lỗi Firestore:', deleteErr);
+        }
+
+        throw new Error(
+          `Lỗi khi lưu hồ sơ người dùng vào Firestore: ${translateFirebaseError(
+            firestoreErr
+          )}. Tài khoản chưa được tạo hoàn tất, vui lòng thử lại!`
+        );
+      }
+
+      // ĐĂNG KÝ XONG KHÔNG TỰ ĐĂNG NHẬP:
+      // createUserWithEmailAndPassword tự động đăng nhập, nên ta lập tức gọi signOut()
+      // để trả về màn hình Đăng nhập theo đúng quy trình
+      try {
+        await signOut(auth);
+      } catch (signOutErr) {
+        console.warn('[FirebaseAuthService] Lỗi signOut sau khi đăng ký:', signOutErr);
+      }
+
+      return {
+        id: uid,
+        name: profileData.name,
+        email: profileData.email,
+        role: profileData.role,
+        schoolName: profileData.schoolName,
+        department: profileData.department,
+        identifierCode: profileData.identifierCode,
+        code: profileData.code,
+        className: profileData.className || undefined,
+        academicYear: profileData.academicYear || undefined,
+        academicDegree: profileData.academicDegree || undefined,
+        authProvider: 'email',
+        avatar: profileData.avatar,
+      };
+    } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error(translateFirebaseError(err));
+    } finally {
+      this.isRegistering = false;
+    }
   }
 
   /**
@@ -300,6 +318,10 @@ export class FirebaseAuthService implements AuthService {
    * Lắng nghe onAuthStateChanged, nếu đã có phiên thì đọc hồ sơ Firestore users/{uid}.
    */
   async restoreSession(): Promise<User | null> {
+    if (this.isRegistering) {
+      return null;
+    }
+
     const auth = this.getAuthInstance();
     const db = this.getFirestoreInstance();
 
@@ -315,7 +337,7 @@ export class FirebaseAuthService implements AuthService {
           unsubscribe();
           clearTimeout(timeout);
 
-          if (!firebaseUser) {
+          if (!firebaseUser || this.isRegistering) {
             resolve(null);
             return;
           }

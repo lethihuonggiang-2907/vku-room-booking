@@ -175,9 +175,10 @@ export const RegisterScreen: React.FC = () => {
     if (!isFormValid) return;
 
     clearError();
-    await register({
+    const registeredEmail = email.trim().toLowerCase();
+    const success = await register({
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: registeredEmail,
       password,
       role,
       schoolName,
@@ -188,6 +189,13 @@ export const RegisterScreen: React.FC = () => {
       academicDegree: role === 'lecturer' ? academicDegree || undefined : undefined,
       adminInviteCode: !isFirebaseMode && role === 'admin' ? adminInviteCode.trim() : undefined,
     });
+
+    if (success) {
+      navigation.navigate('Login', {
+        registeredEmail,
+        successMessage: 'Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.',
+      });
+    }
   };
 
   return (
@@ -756,7 +764,7 @@ export const RegisterScreen: React.FC = () => {
               ) : (
                 <>
                   <Ionicons name="person-add" size={18} color={theme.colors.white} />
-                  <Text style={styles.primaryBtnText}>Đăng ký & Đăng nhập ngay</Text>
+                  <Text style={styles.primaryBtnText}>Đăng ký tài khoản</Text>
                 </>
               )}
             </TouchableOpacity>

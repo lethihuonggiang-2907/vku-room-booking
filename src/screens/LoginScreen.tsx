@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, UserRole } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
@@ -22,6 +22,7 @@ import { isAuthFirebaseMode } from '../services/auth';
 import { theme } from '../theme';
 
 type LoginNavProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+type LoginRouteProp = RouteProp<AuthStackParamList, 'Login'>;
 
 interface MockSocialAccount {
   name: string;
@@ -85,12 +86,24 @@ const MOCK_FACEBOOK_ACCOUNTS: MockSocialAccount[] = [
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginNavProp>();
+  const route = useRoute<LoginRouteProp>();
   const { login, loginWithProvider, isLoading, error, clearError } = useAuthStore();
   const isFirebaseMode = isAuthFirebaseMode();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Nhận email và thông báo thành công sau khi người dùng đăng ký từ RegisterScreen
+  useEffect(() => {
+    if (route.params?.registeredEmail) {
+      setEmail(route.params.registeredEmail);
+    }
+    if (route.params?.successMessage) {
+      setSuccessMessage(route.params.successMessage);
+    }
+  }, [route.params?.registeredEmail, route.params?.successMessage]);
 
   // Modal giả lập OAuth Google / Facebook
   const [socialModalVisible, setSocialModalVisible] = useState(false);
@@ -102,6 +115,7 @@ export const LoginScreen: React.FC = () => {
       return;
     }
     clearError();
+    setSuccessMessage(null);
     await login({
       email: email.trim(),
       password,
@@ -111,6 +125,7 @@ export const LoginScreen: React.FC = () => {
   // Mở modal giả lập đăng nhập mạng xã hội
   const handleOpenSocialModal = (provider: 'google' | 'facebook') => {
     clearError();
+    setSuccessMessage(null);
     setSelectedProvider(provider);
     setSocialModalVisible(true);
   };
@@ -188,6 +203,14 @@ export const LoginScreen: React.FC = () => {
               Sử dụng tài khoản email trường VKU của bạn để tiếp tục
             </Text>
 
+            {/* Thông báo đăng ký thành công nếu có */}
+            {successMessage ? (
+              <View style={styles.successBanner}>
+                <Ionicons name="checkmark-circle" size={18} color="#047857" />
+                <Text style={styles.successBannerText}>{successMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Thông báo lỗi tiếng Việt nếu có */}
             {error ? (
               <View style={styles.errorBanner}>
@@ -214,6 +237,7 @@ export const LoginScreen: React.FC = () => {
                   onChangeText={(text) => {
                     setEmail(text);
                     if (error) clearError();
+                    if (successMessage) setSuccessMessage(null);
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -240,6 +264,7 @@ export const LoginScreen: React.FC = () => {
                   onChangeText={(text) => {
                     setPassword(text);
                     if (error) clearError();
+                    if (successMessage) setSuccessMessage(null);
                   }}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -494,6 +519,24 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 4,
     marginBottom: theme.spacing.lg,
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: theme.spacing.md,
+    gap: 8,
+  },
+  successBannerText: {
+    flex: 1,
+    fontSize: theme.typography.fontSize.xs,
+    color: '#047857',
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   errorBanner: {
     flexDirection: 'row',

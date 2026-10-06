@@ -191,7 +191,7 @@ export class LocalAuthService implements AuthService {
     ];
 
     await AsyncStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(updatedRecords));
-    await this.saveSessionUserId(newUser.id);
+    // Đăng ký xong KHÔNG tự động đăng nhập (yêu cầu người dùng đăng nhập lại từ LoginScreen)
 
     return newUser;
   }

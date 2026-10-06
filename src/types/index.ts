@@ -104,7 +104,7 @@ export interface AppNotification {
 
 // Navigation types
 export type AuthStackParamList = {
-  Login: undefined;
+  Login: { registeredEmail?: string; successMessage?: string } | undefined;
   Register: { initialRole?: UserRole } | undefined;
 };
 
