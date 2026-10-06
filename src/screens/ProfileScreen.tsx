@@ -8,9 +8,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../store/useAuthStore';
 import { useBookingStore } from '../store/useBookingStore';
 import { Badge } from '../components/Badge';
 import { AppPressable } from '../components/AppPressable';
@@ -23,16 +25,59 @@ export const ProfileScreen: React.FC = () => {
   const [isSendingDemo, setIsSendingDemo] = useState(false);
   const { notifyDemoReceived } = useNotifications();
 
-  const currentUser = useBookingStore((state) => state.currentUser);
-  const switchUserRole = useBookingStore((state) => state.switchUserRole);
+  const authUser = useAuthStore((state) => state.user);
+  const bookingUser = useBookingStore((state) => state.currentUser);
+  const currentUser = authUser || bookingUser;
+  const { logout, isLoading: isAuthLoading } = useAuthStore();
+
   const bookings = useBookingStore((state) => state.bookings);
 
+  // Lọc lịch đặt gắn theo ID người dùng hiện tại
   const userBookings = bookings.filter((b) => b.userId === currentUser.id);
   const confirmedCount = userBookings.filter((b) => b.status === 'confirmed').length;
   const cancelledCount = userBookings.filter((b) => b.status === 'cancelled').length;
 
+  const isStudent = currentUser.role === 'student';
   const isLecturer = currentUser.role === 'lecturer';
   const isAdmin = currentUser.role === 'admin';
+
+  // Chuyển đổi tên nhà cung cấp đăng nhập sang tiếng Việt
+  const getProviderLabel = () => {
+    switch (currentUser.authProvider) {
+      case 'google':
+        return 'Tài khoản Google (SSO)';
+      case 'facebook':
+        return 'Tài khoản Facebook (SSO)';
+      case 'email':
+      default:
+        return 'Email trường VKU';
+    }
+  };
+
+  // Xử lý đăng xuất có xác nhận
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản VKU Room Booking không?'
+      );
+      if (confirmed) {
+        logout();
+      }
+    } else {
+      Alert.alert(
+        'Xác nhận đăng xuất',
+        'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản VKU Room Booking không?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Đăng xuất',
+            style: 'destructive',
+            onPress: () => logout(),
+          },
+        ]
+      );
+    }
+  };
 
   // Handler cho nút demo thông báo 5 giây
   const handleSendDemoNotification = async () => {
@@ -52,8 +97,9 @@ export const ProfileScreen: React.FC = () => {
         'Thông báo nhắc nhở nhận phòng sẽ tự động xuất hiện trên màn hình sau 5 giây (kể cả khi bạn khóa màn hình hoặc chuyển sang ứng dụng khác).',
         [{ text: 'Đã hiểu' }]
       );
-    } catch (error: any) {
-      Alert.alert('Không thể gửi thông báo', error.message || 'Vui lòng kiểm tra quyền thông báo trong Cài đặt.');
+    } catch (error: unknown) {
+      const errMessage = error instanceof Error ? error.message : 'Vui lòng kiểm tra quyền thông báo trong Cài đặt.';
+      Alert.alert('Không thể gửi thông báo', errMessage);
     } finally {
       setIsSendingDemo(false);
     }
@@ -75,7 +121,8 @@ export const ProfileScreen: React.FC = () => {
           <Image source={{ uri: currentUser.avatar }} style={styles.avatar} />
           <Text style={styles.userName}>{currentUser.name}</Text>
           <Text style={styles.userCode}>
-            {isAdmin ? 'Mã cán bộ QTV' : isLecturer ? 'Mã giảng viên' : 'MSSV'}: {currentUser.code}
+            {isAdmin ? 'Mã cán bộ QTV' : isLecturer ? 'Mã giảng viên' : 'MSSV'}:{' '}
+            {currentUser.identifierCode || currentUser.code}
           </Text>
 
           <View style={styles.roleBadgeContainer}>
@@ -98,27 +145,13 @@ export const ProfileScreen: React.FC = () => {
               }
             />
           </View>
-
-          {/* Role switcher toggle button */}
-          <AppPressable
-            style={styles.switchButton}
-            onPress={() => switchUserRole()}
-            scaleTo={0.96}
-            accessibilityRole="button"
-            accessibilityLabel="Đổi vai trò tài khoản demo"
-          >
-            <Ionicons name="swap-horizontal" size={18} color={theme.colors.white} />
-            <Text style={styles.switchButtonText}>
-              Đổi vai trò demo ({getRoleLabel(currentUser.role)})
-            </Text>
-          </AppPressable>
         </View>
 
-        {/* Stats Row */}
+        {/* Stats Row (chỉ hiển thị lượt đặt của người dùng hiện tại) */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{userBookings.length}</Text>
-            <Text style={styles.statLabel}>Tổng lượt đặt</Text>
+            <Text style={styles.statLabel}>Lượt đặt của bạn</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
@@ -136,10 +169,11 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Info Details Card */}
+        {/* Info Details Card: Thông tin thật của người dùng */}
         <View style={styles.infoCard}>
           <Text style={styles.infoCardTitle}>Thông tin liên hệ & Học vụ</Text>
 
+          {/* Email trường */}
           <View style={styles.infoItem}>
             <View style={styles.infoIconBox}>
               <Ionicons name="mail-outline" size={18} color={theme.colors.primary} />
@@ -150,16 +184,82 @@ export const ProfileScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Tên trường */}
+          <View style={styles.infoItem}>
+            <View style={styles.infoIconBox}>
+              <Ionicons name="school-outline" size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.infoTextBox}>
+              <Text style={styles.infoLabel}>Cơ sở đào tạo</Text>
+              <Text style={styles.infoValue}>{currentUser.schoolName}</Text>
+            </View>
+          </View>
+
+          {/* Khoa / Đơn vị */}
           <View style={styles.infoItem}>
             <View style={styles.infoIconBox}>
               <Ionicons name="business-outline" size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Khoa / Đơn vị</Text>
+              <Text style={styles.infoLabel}>Khoa / Phòng ban</Text>
               <Text style={styles.infoValue}>{currentUser.department}</Text>
             </View>
           </View>
 
+          {/* Nếu là sinh viên: Lớp & Niên khóa */}
+          {isStudent && (
+            <>
+              {currentUser.className && (
+                <View style={styles.infoItem}>
+                  <View style={styles.infoIconBox}>
+                    <Ionicons name="people-outline" size={18} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.infoTextBox}>
+                    <Text style={styles.infoLabel}>Lớp sinh hoạt</Text>
+                    <Text style={styles.infoValue}>{currentUser.className}</Text>
+                  </View>
+                </View>
+              )}
+
+              {currentUser.academicYear && (
+                <View style={styles.infoItem}>
+                  <View style={styles.infoIconBox}>
+                    <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.infoTextBox}>
+                    <Text style={styles.infoLabel}>Niên khóa</Text>
+                    <Text style={styles.infoValue}>{currentUser.academicYear}</Text>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Nếu là giảng viên: Học vị */}
+          {isLecturer && currentUser.academicDegree && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconBox}>
+                <Ionicons name="ribbon-outline" size={18} color={theme.colors.warning} />
+              </View>
+              <View style={styles.infoTextBox}>
+                <Text style={styles.infoLabel}>Học vị</Text>
+                <Text style={styles.infoValue}>{currentUser.academicDegree}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Phương thức đăng nhập */}
+          <View style={styles.infoItem}>
+            <View style={styles.infoIconBox}>
+              <Ionicons name="key-outline" size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.infoTextBox}>
+              <Text style={styles.infoLabel}>Phương thức đăng nhập</Text>
+              <Text style={styles.infoValue}>{getProviderLabel()}</Text>
+            </View>
+          </View>
+
+          {/* Trạng thái xác thực */}
           <View style={styles.infoItem}>
             <View style={styles.infoIconBox}>
               <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.successDark} />
@@ -167,16 +267,34 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.infoTextBox}>
               <Text style={styles.infoLabel}>Trạng thái tài khoản</Text>
               <Text style={[styles.infoValue, { color: theme.colors.successDark }]}>
-                Đã xác thực SSO VKU
+                Đã xác thực danh tính VKU
               </Text>
             </View>
           </View>
         </View>
 
-        {/* =====================================================================
-            KHU VỰC DEMO: Nút gửi thông báo thử sau 5 giây để quay video báo cáo
-            (Ghi chú: Nút này phục vụ demo chấm điểm, không phải chờ ca học)
-           ===================================================================== */}
+        {/* Nút Đăng xuất tài khoản */}
+        <View style={styles.logoutCard}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            disabled={isAuthLoading}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Đăng xuất khỏi tài khoản"
+          >
+            {isAuthLoading ? (
+              <ActivityIndicator color={theme.colors.dangerDark} size="small" />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={20} color={theme.colors.dangerDark} />
+                <Text style={styles.logoutButtonText}>Đăng xuất tài khoản</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* KHU VỰC DEMO: Nút gửi thông báo thử sau 5 giây để quay video báo cáo */}
         <View style={styles.demoCard}>
           <View style={styles.demoHeaderRow}>
             <View style={styles.demoIconWrap}>
@@ -275,25 +393,6 @@ const styles = StyleSheet.create({
   },
   roleBadgeContainer: {
     marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  switchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: theme.borderRadius.lg,
-    width: '100%',
-    minHeight: theme.minTouchTarget,
-    ...theme.shadows.sm,
-  },
-  switchButtonText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-    marginLeft: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -367,22 +466,26 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginTop: 1,
   },
-  appInfoCard: {
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
+  logoutCard: {
+    marginTop: theme.spacing.lg,
   },
-  appInfoTitle: {
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 48,
+    gap: 8,
+  },
+  logoutButtonText: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textSecondary,
-  },
-  appInfoText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 4,
+    color: theme.colors.dangerDark,
   },
   demoCard: {
     backgroundColor: '#F5F3FF',
@@ -447,5 +550,21 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontStyle: 'italic',
   },
+  appInfoCard: {
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
+  appInfoTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textSecondary,
+  },
+  appInfoText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
 });
-

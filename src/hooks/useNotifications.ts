@@ -1,5 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useNotificationStore } from '../store/useNotificationStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useBookingStore } from '../store/useBookingStore';
 import { AppNotification, Booking } from '../types';
 
 /**
@@ -48,32 +50,45 @@ export function formatRelativeTime(isoString: string): string {
 
 /**
  * Custom Hook useNotifications quản lý toàn bộ nghiệp vụ thông báo in-app
+ * Phân quyền & tách biệt dữ liệu: Người dùng chỉ thấy thông báo gắn theo id của chính mình
  */
 export function useNotifications() {
-  const notifications = useNotificationStore((state) => state.notifications);
+  const allNotifications = useNotificationStore((state) => state.notifications);
   const addNotification = useNotificationStore((state) => state.addNotification);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
   const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
   const deleteNotification = useNotificationStore((state) => state.deleteNotification);
   const clearAll = useNotificationStore((state) => state.clearAll);
 
-  // Đếm số lượng thông báo chưa đọc
+  // Lấy ID người dùng đang đăng nhập
+  const authUser = useAuthStore((state) => state.user);
+  const bookingUser = useBookingStore((state) => state.currentUser);
+  const currentUserId = authUser?.id || bookingUser?.id;
+
+  // Lọc thông báo chỉ cho người dùng hiện tại
+  const userNotifications = useMemo(() => {
+    if (!currentUserId) return [];
+    return allNotifications.filter((n) => n.userId === currentUserId);
+  }, [allNotifications, currentUserId]);
+
+  // Đếm số lượng thông báo chưa đọc của người dùng hiện tại
   const unreadCount = useMemo(() => {
-    return notifications.filter((n) => !n.isRead).length;
-  }, [notifications]);
+    return userNotifications.filter((n) => !n.isRead).length;
+  }, [userNotifications]);
 
   // Thông báo khi đặt phòng thành công
   const notifyBookingConfirmed = useCallback(
     (booking: Booking) => {
       addNotification({
         id: `notif-confirmed-${booking.id}`,
+        userId: booking.userId || currentUserId,
         type: 'booking_confirmed',
         title: 'Đặt phòng học thành công',
         content: `Bạn đã đặt thành công phòng ${booking.roomName} (${booking.roomCode}) vào khung giờ ${booking.slotLabel}, ngày ${booking.date}. Mã đặt: ${booking.bookingCode}.`,
         bookingId: booking.id,
       });
     },
-    [addNotification]
+    [addNotification, currentUserId]
   );
 
   // Thông báo khi hủy đặt phòng
@@ -81,31 +96,35 @@ export function useNotifications() {
     (booking: Booking) => {
       addNotification({
         id: `notif-cancelled-${booking.id}-${Date.now()}`,
+        userId: booking.userId || currentUserId,
         type: 'booking_cancelled',
         title: 'Đã hủy lịch đặt phòng',
         content: `Lịch đặt phòng ${booking.roomName} vào lúc ${booking.slotLabel}, ngày ${booking.date} đã được hủy bỏ thành công.`,
         bookingId: booking.id,
       });
     },
-    [addNotification]
+    [addNotification, currentUserId]
   );
 
   // Thông báo Demo sau 5 giây
   const notifyDemoReceived = useCallback(
     (message?: string) => {
       addNotification({
+        userId: currentUserId,
         type: 'demo',
         title: '🔔 Thông báo thử nghiệm (Demo)',
-        content: message || 'Thông báo thử nghiệm hệ thống sau 5 giây đã hoạt động chuẩn xác! Mở QR hoặc kiểm tra lịch của bạn.',
+        content:
+          message ||
+          'Thông báo thử nghiệm hệ thống sau 5 giây đã hoạt động chuẩn xác! Mở QR hoặc kiểm tra lịch của bạn.',
       });
     },
-    [addNotification]
+    [addNotification, currentUserId]
   );
 
   /**
    * Đồng bộ nhắc nhở check-in (15 phút trước giờ ca học)
-   * Duyệt các lượt đặt 'confirmed': nếu đã đến thời điểm nhắc (trước giờ ca 15 phút)
-   * mà chưa có mục nhắc tương ứng trong store thì tự động tạo mới (chống trùng theo bookingId).
+   * Duyệt các lượt đặt 'confirmed' của chính người dùng: nếu đã đến thời điểm nhắc
+   * mà chưa có mục nhắc tương ứng trong store thì tự động tạo mới.
    */
   const syncCheckinReminders = useCallback(
     (bookings: Booking[]) => {
@@ -117,8 +136,9 @@ export function useNotifications() {
       };
 
       const now = Date.now();
+      const userBookings = bookings.filter((b) => b.userId === currentUserId);
 
-      bookings.forEach((booking) => {
+      userBookings.forEach((booking) => {
         if (booking.status !== 'confirmed') return;
 
         const timeInfo = slotStartHours[booking.slotId];
@@ -127,7 +147,13 @@ export function useNotifications() {
         const parts = booking.date.split('-').map((v) => parseInt(v, 10));
         if (parts.length !== 3) return;
 
-        const startTime = new Date(parts[0], parts[1] - 1, parts[2], timeInfo.hour, timeInfo.minute).getTime();
+        const startTime = new Date(
+          parts[0],
+          parts[1] - 1,
+          parts[2],
+          timeInfo.hour,
+          timeInfo.minute
+        ).getTime();
         const reminderTime = startTime - 15 * 60 * 1000; // 15 phút trước
         const slotEndTime = startTime + 2 * 60 * 60 * 1000; // Hết ca học (+2 tiếng)
 
@@ -136,6 +162,7 @@ export function useNotifications() {
           const reminderNotifId = `reminder-${booking.id}`;
           addNotification({
             id: reminderNotifId,
+            userId: booking.userId,
             type: 'checkin_reminder',
             title: `Nhắc nhở: Sắp đến giờ nhận phòng ${booking.roomCode}`,
             content: `Ca học lúc ${booking.slotLabel} tại ${booking.roomName} sắp bắt đầu. Vui lòng chuẩn bị mã QR để cán bộ hoặc cửa quét mở phòng.`,
@@ -144,11 +171,11 @@ export function useNotifications() {
         }
       });
     },
-    [addNotification]
+    [addNotification, currentUserId]
   );
 
   return {
-    notifications,
+    notifications: userNotifications,
     unreadCount,
     markAsRead,
     markAllAsRead,

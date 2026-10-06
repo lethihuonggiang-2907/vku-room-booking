@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Booking } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { useNotifications } from '../hooks/useNotifications';
 import { Badge } from '../components/Badge';
 import { AppPressable } from '../components/AppPressable';
@@ -30,7 +31,9 @@ export const MyBookingsScreen: React.FC = () => {
 
   const { notifyBookingCancelled } = useNotifications();
 
-  const currentUser = useBookingStore((state) => state.currentUser);
+  const authUser = useAuthStore((state) => state.user);
+  const bookingUser = useBookingStore((state) => state.currentUser);
+  const currentUser = authUser || bookingUser;
   const bookings = useBookingStore((state) => state.bookings);
   const cancelBooking = useBookingStore((state) => state.cancelBooking);
 

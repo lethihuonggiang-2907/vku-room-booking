@@ -5,6 +5,7 @@ import { AppNotification, AppNotificationType } from '../types';
 
 export interface AddNotificationInput {
   id?: string;
+  userId?: string;
   type: AppNotificationType;
   title: string;
   content: string;
@@ -29,6 +30,7 @@ const createInitialNotifications = (): AppNotification[] => {
   return [
     {
       id: 'notif-init-01',
+      userId: 'usr-sv-01',
       type: 'booking_confirmed',
       title: 'Đặt phòng học thành công',
       content: 'Lịch đặt phòng A.101 - Smart Classroom vào lúc 09:30 - 11:30 đã được xác nhận. Mã đặt: VKU-A101-7821.',
@@ -38,6 +40,7 @@ const createInitialNotifications = (): AppNotification[] => {
     },
     {
       id: 'notif-init-02',
+      userId: 'usr-sv-01',
       type: 'checkin_reminder',
       title: 'Nhắc nhở nhận phòng sắp tới',
       content: 'Chỉ còn 15 phút nữa là đến giờ nhận phòng A.101. Vui lòng mở mã QR sẵn sàng để check-in tại cửa phòng!',
@@ -47,6 +50,7 @@ const createInitialNotifications = (): AppNotification[] => {
     },
     {
       id: 'notif-init-03',
+      userId: 'usr-sv-01',
       type: 'demo',
       title: 'Chào mừng bạn đến với VKU Room Booking',
       content: 'Ứng dụng đã sẵn sàng hỗ trợ bạn tra cứu và đặt phòng học, phòng Lab thông minh tại trường ĐH CNTT&TT Việt - Hàn.',
@@ -74,6 +78,7 @@ export const useNotificationStore = create<NotificationStoreState>()(
 
         const newNotification: AppNotification = {
           id: notificationId,
+          userId: input.userId,
           type: input.type,
           title: input.title,
           content: input.content,
