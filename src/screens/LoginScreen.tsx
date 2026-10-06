@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, UserRole } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
-import { getRoleLabel, DEFAULT_SCHOOL_NAME } from '../constants/authConstants';
+import { getRoleLabel } from '../constants/authConstants';
 import { isAuthFirebaseMode } from '../services/auth';
 import { theme } from '../theme';
 
@@ -85,7 +85,7 @@ const MOCK_FACEBOOK_ACCOUNTS: MockSocialAccount[] = [
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginNavProp>();
-  const { login, register, loginWithProvider, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithProvider, isLoading, error, clearError } = useAuthStore();
   const isFirebaseMode = isAuthFirebaseMode();
 
   const [email, setEmail] = useState('');
@@ -106,59 +106,6 @@ export const LoginScreen: React.FC = () => {
       email: email.trim(),
       password,
     });
-  };
-
-  // Nút đăng nhập nhanh tài khoản demo phục vụ quay video báo cáo
-  const handleQuickDemoLogin = async (role: UserRole) => {
-    clearError();
-
-    if (role === 'student') {
-      setEmail('giang.lth@vku.udn.vn');
-      setPassword('Demo@123456');
-      const ok = await login({ email: 'giang.lth@vku.udn.vn', password: 'Demo@123456' });
-      // Ở chế độ Firebase, tự động tạo tài khoản demo Sinh viên nếu chưa tồn tại
-      if (!ok && isFirebaseMode) {
-        await register({
-          name: 'Lê Thị Hương Giang',
-          email: 'giang.lth@vku.udn.vn',
-          password: 'Demo@123456',
-          role: 'student',
-          schoolName: DEFAULT_SCHOOL_NAME,
-          department: 'Khoa Công nghệ Thông tin & Truyền thông',
-          identifierCode: '21IT2907',
-          className: '21IT1',
-          academicYear: '2021 - 2026',
-        });
-      }
-    } else if (role === 'lecturer') {
-      setEmail('hung.nv@vku.udn.vn');
-      setPassword('Demo@123456');
-      const ok = await login({ email: 'hung.nv@vku.udn.vn', password: 'Demo@123456' });
-      // Ở chế độ Firebase, tự động tạo tài khoản demo Giảng viên nếu chưa tồn tại
-      if (!ok && isFirebaseMode) {
-        await register({
-          name: 'TS. Nguyễn Văn Hùng',
-          email: 'hung.nv@vku.udn.vn',
-          password: 'Demo@123456',
-          role: 'lecturer',
-          schoolName: DEFAULT_SCHOOL_NAME,
-          department: 'Khoa Khoa học Máy tính',
-          identifierCode: 'VKU-GV1024',
-          academicDegree: 'Tiến sĩ',
-        });
-      }
-    } else {
-      setEmail('admin@vku.udn.vn');
-      setPassword('Demo@123456');
-      const ok = await login({ email: 'admin@vku.udn.vn', password: 'Demo@123456' });
-      // Ở chế độ Firebase, tài khoản admin chỉ đăng nhập vào tài khoản do người dùng tự tạo trên console
-      if (!ok && isFirebaseMode) {
-        useAuthStore.setState({
-          error:
-            'Tài khoản Quản trị viên (admin@vku.udn.vn) chưa tồn tại trên Firebase. Vui lòng tạo tài khoản trên Firebase Console và gán vai trò "admin" trong collection users theo hướng dẫn README.',
-        });
-      }
-    }
   };
 
   // Mở modal giả lập đăng nhập mạng xã hội
@@ -369,57 +316,6 @@ export const LoginScreen: React.FC = () => {
               >
                 <Ionicons name="logo-facebook" size={18} color="#1877F2" />
                 <Text style={styles.socialBtnText}>Facebook</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Khu vực Demo: Đăng nhập nhanh 1-chạm khi quay video báo cáo */}
-          <View style={styles.demoSection}>
-            <View style={styles.demoHeaderRow}>
-              <Ionicons name="flash" size={16} color={theme.colors.secondary} />
-              <Text style={styles.demoSectionTitle}>Tài khoản Demo (1-Chạm quay video)</Text>
-            </View>
-            <Text style={styles.demoSectionDesc}>
-              Nhấn để tự động điền và đăng nhập ngay với vai trò tương ứng:
-            </Text>
-
-            <View style={styles.demoBtnGroup}>
-              <TouchableOpacity
-                style={[styles.demoQuickBtn, styles.demoBtnStudent]}
-                onPress={() => handleQuickDemoLogin('student')}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="person" size={14} color={theme.colors.primary} />
-                <View style={styles.demoBtnTextWrap}>
-                  <Text style={styles.demoBtnTitle}>Sinh viên</Text>
-                  <Text style={styles.demoBtnSub}>Lê Thị Hương Giang</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoQuickBtn, styles.demoBtnLecturer]}
-                onPress={() => handleQuickDemoLogin('lecturer')}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="school" size={14} color="#B45309" />
-                <View style={styles.demoBtnTextWrap}>
-                  <Text style={[styles.demoBtnTitle, { color: '#92400E' }]}>Giảng viên</Text>
-                  <Text style={styles.demoBtnSub}>TS. Nguyễn Văn Hùng</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoQuickBtn, styles.demoBtnAdmin]}
-                onPress={() => handleQuickDemoLogin('admin')}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="shield-checkmark" size={14} color={theme.colors.dangerDark} />
-                <View style={styles.demoBtnTextWrap}>
-                  <Text style={[styles.demoBtnTitle, { color: theme.colors.dangerDark }]}>
-                    Quản trị viên
-                  </Text>
-                  <Text style={styles.demoBtnSub}>Admin VKU</Text>
-                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -722,67 +618,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.text,
-  },
-  demoSection: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-  },
-  demoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  demoSectionTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: '#15803D',
-  },
-  demoSectionDesc: {
-    fontSize: 11,
-    color: '#166534',
-    marginBottom: theme.spacing.md,
-  },
-  demoBtnGroup: {
-    gap: 8,
-  },
-  demoQuickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    minHeight: 46,
-    gap: 10,
-  },
-  demoBtnStudent: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
-  },
-  demoBtnLecturer: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
-  },
-  demoBtnAdmin: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FECACA',
-  },
-  demoBtnTextWrap: {
-    flex: 1,
-  },
-  demoBtnTitle: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.primary,
-  },
-  demoBtnSub: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    marginTop: 1,
   },
   modalOverlay: {
     flex: 1,

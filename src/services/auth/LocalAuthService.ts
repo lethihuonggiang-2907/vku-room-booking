@@ -58,96 +58,11 @@ export class LocalAuthService implements AuthService {
   }
 
   /**
-   * Khởi tạo và gieo mầm tài khoản demo nếu chưa từng có dữ liệu
+   * Khởi tạo lưu trữ nội bộ
    */
   private async ensureInitialized(): Promise<void> {
     if (this.isInitialized) return;
-
-    try {
-      const rawAccounts = await AsyncStorage.getItem(STORAGE_ACCOUNTS_KEY);
-      if (!rawAccounts) {
-        await this.seedDemoAccounts();
-      }
-      this.isInitialized = true;
-    } catch {
-      // Tiếp tục nếu có lỗi đọc bộ nhớ đệm
-      this.isInitialized = true;
-    }
-  }
-
-  /**
-   * Khởi tạo 3 tài khoản Demo chuẩn (Sinh viên, Giảng viên, Quản trị viên)
-   * Mật khẩu mặc định: Demo@123456
-   */
-  private async seedDemoAccounts(): Promise<void> {
-    const defaultPassword = 'Demo@123456';
-
-    const seedUsers: Array<{
-      user: User;
-      plainPass: string;
-    }> = [
-      {
-        user: {
-          id: 'usr-sv-01',
-          name: 'Lê Thị Hương Giang',
-          email: 'giang.lth@vku.udn.vn',
-          role: 'student',
-          schoolName: DEFAULT_SCHOOL_NAME,
-          department: 'Khoa Công nghệ Thông tin & Truyền thông',
-          identifierCode: '21IT2907',
-          code: '21IT2907',
-          className: '21IT1',
-          academicYear: '2021 - 2026',
-          authProvider: 'email',
-          avatar: DEFAULT_AVATARS.student,
-        },
-        plainPass: defaultPassword,
-      },
-      {
-        user: {
-          id: 'usr-gv-01',
-          name: 'TS. Nguyễn Văn Hùng',
-          email: 'hung.nv@vku.udn.vn',
-          role: 'lecturer',
-          schoolName: DEFAULT_SCHOOL_NAME,
-          department: 'Khoa Khoa học Máy tính',
-          identifierCode: 'VKU-GV1024',
-          code: 'VKU-GV1024',
-          academicDegree: 'Tiến sĩ',
-          authProvider: 'email',
-          avatar: DEFAULT_AVATARS.lecturer,
-        },
-        plainPass: defaultPassword,
-      },
-      {
-        user: {
-          id: 'usr-admin-01',
-          name: 'Quản trị viên VKU',
-          email: 'admin@vku.udn.vn',
-          role: 'admin',
-          schoolName: DEFAULT_SCHOOL_NAME,
-          department: 'Phòng Hành chính - Tổ chức',
-          identifierCode: 'VKU-CB001',
-          code: 'VKU-CB001',
-          authProvider: 'email',
-          avatar: DEFAULT_AVATARS.admin,
-        },
-        plainPass: defaultPassword,
-      },
-    ];
-
-    const records: LocalAccountRecord[] = [];
-    for (const item of seedUsers) {
-      const salt = Crypto.randomUUID();
-      const passwordHash = await this.hashPassword(item.plainPass, salt);
-      records.push({
-        user: item.user,
-        salt,
-        passwordHash,
-      });
-    }
-
-    await AsyncStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(records));
+    this.isInitialized = true;
   }
 
   /**

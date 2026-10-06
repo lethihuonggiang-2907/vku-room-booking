@@ -100,7 +100,7 @@ Vì lý do bảo mật, ứng dụng chặn không cho phép người dùng tự
 2. Nhấn **Add user**.
 3. Nhập:
    - **Email:** `admin@vku.udn.vn`
-   - **Password:** `Demo@123456`
+   - **Password:** `<Mật khẩu quản trị viên tự chọn>`
 4. Nhấn **Add user**. Sau đó sao chép chuỗi **User UID** của tài khoản vừa tạo.
 
 ### 2. Tạo hồ sơ trên Cloud Firestore:
@@ -143,11 +143,11 @@ npx expo start --tunnel -c
 ### 2. Kiểm thử trên Trình duyệt Web (Khung 390px):
 1. Nhấn phím `w` trong terminal hoặc truy cập `http://localhost:8081`.
 2. Mở Công cụ phát triển trình duyệt (F12) > Bật chế độ Responsive Device Toolbar > Chọn thiết bị **iPhone 12/13/14/15 Pro (390 x 844)**.
-3. Quan sát:
-   - Huy hiệu `Chế độ: Firebase Cloud` hiển thị rõ ràng.
-   - Bấm nút demo **Sinh viên (Lê Thị Hương Giang)**: Nếu tài khoản chưa có trên Firebase, ứng dụng sẽ tự động khởi tạo trên Auth & Firestore và đăng nhập thành công.
-   - Bấm nút demo **Giảng viên (TS. Nguyễn Văn Hùng)**: Tự động khởi tạo và đăng nhập thành công.
-   - Bấm nút demo **Quản trị viên**: Đăng nhập trực tiếp vào tài khoản admin bạn đã tạo trên console.
+3. Quan sát và kiểm tra đăng nhập:
+   - Huy hiệu `Chế độ: Firebase Cloud` (hoặc `Chế độ demo/offline`) hiển thị rõ ràng trên màn hình.
+   - **Đăng nhập Quản trị viên:** Nhập email `admin@vku.udn.vn` và mật khẩu đã tạo trên Firebase Console trực tiếp qua form Đăng nhập.
+   - **Đăng nhập Sinh viên / Giảng viên:** Nhấn "Đăng ký ngay" để tạo tài khoản, sau đó đăng nhập bằng email và mật khẩu vừa đăng ký.
+   - Toàn bộ mật khẩu đều do người dùng tự nhập qua form, không sử dụng mật khẩu hay nút demo cứng trong mã nguồn.
 
 ### 3. Kiểm thử trên iPhone (iOS) & Android:
 1. Mở ứng dụng **Expo Go** trên điện thoại.
