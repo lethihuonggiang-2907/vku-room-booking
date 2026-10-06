@@ -1,0 +1,54 @@
+rules_version = '2';
+
+/**
+ * ============================================================================
+ * FIRESTORE SECURITY RULES - VKU ROOM BOOKING (MỨC ĐỘ BẢO MẬT DEMO)
+ * ============================================================================
+ * Hướng dẫn sử dụng:
+ * 1. Truy cập Firebase Console: https://console.firebase.google.com
+ * 2. Chọn dự án > Build > Firestore Database > Tab "Rules"
+ * 3. Dán toàn bộ nội dung file này vào editor và nhấn "Publish".
+ *
+ * Chính sách bảo mật áp dụng:
+ * - Mỗi người dùng sau khi xác thực chỉ có quyền ĐỌC và GHI tài liệu hồ sơ
+ *   của chính bản thân họ tại đường dẫn /users/{userId}.
+ * - Client TUYỆT ĐỐI KHÔNG ĐƯỢC tự tạo hoặc sửa đổi tài khoản có vai trò 'admin'.
+ *   Khi đăng ký (create), vai trò chỉ được phép là 'student' hoặc 'lecturer'.
+ *   Khi cập nhật (update), người dùng không thể tự thay đổi vai trò (role) của mình.
+ *   Vai trò 'admin' CHỈ được thiết lập thủ công trực tiếp từ Firebase Console.
+ * - Tất cả các collection khác mặc định bị TỪ CHỐI (deny all).
+ * ============================================================================
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Quy tắc truy cập collection 'users'
+    match /users/{userId} {
+      // Người dùng đã đăng nhập chỉ được đọc hồ sơ của chính mình
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Người dùng tạo hồ sơ mới:
+      // 1. Phải khớp với uid xác thực
+      // 2. Vai trò bắt buộc phải là 'student' hoặc 'lecturer' (chặn client tự tạo admin)
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.role in ['student', 'lecturer'];
+
+      // Người dùng cập nhật hồ sơ:
+      // 1. Phải khớp với uid xác thực
+      // 2. Không được thay đổi trường 'role' (chống tự leo quyền admin)
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+
+      // Không cho phép client tự xóa hồ sơ
+      allow delete: if false;
+    }
+
+    // Mặc định từ chối mọi quyền truy cập vào các collection khác
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
