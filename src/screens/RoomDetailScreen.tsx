@@ -24,6 +24,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { createBookingApi } from '../api/roomApi';
 import { Badge } from '../components/Badge';
 import { AppPressable } from '../components/AppPressable';
+import { getRoleLabel } from '../constants/authConstants';
 import { theme } from '../theme';
 
 type RoomDetailRouteProp = RouteProp<RootStackParamList, 'RoomDetail'>;
@@ -101,7 +102,13 @@ export const RoomDetailScreen: React.FC = () => {
         date: selectedDate,
         slotId: selectedSlot.id,
         slotLabel: selectedSlot.label,
-        purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
+        purpose:
+          purpose.trim() ||
+          (currentUser.role === 'lecturer'
+            ? 'Giảng dạy & Cố vấn'
+            : currentUser.role === 'admin'
+            ? 'Quản lý & Điều phối phòng học'
+            : 'Học tập & Thảo luận nhóm'),
         attendeesCount: attendees,
         userId: currentUser.id,
         userName: currentUser.name,
@@ -130,7 +137,13 @@ export const RoomDetailScreen: React.FC = () => {
         date: selectedDate,
         slotId: selectedSlot.id,
         slotLabel: selectedSlot.label,
-        purpose: purpose.trim() || (currentUser.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập & Thảo luận nhóm'),
+        purpose:
+          purpose.trim() ||
+          (currentUser.role === 'lecturer'
+            ? 'Giảng dạy & Cố vấn'
+            : currentUser.role === 'admin'
+            ? 'Quản lý & Điều phối phòng học'
+            : 'Học tập & Thảo luận nhóm'),
         attendeesCount: attendees,
         notificationId,
       });
@@ -405,7 +418,7 @@ export const RoomDetailScreen: React.FC = () => {
             <View style={styles.userInfoTextWrap}>
               <Text style={styles.userName}>{currentUser.name}</Text>
               <Text style={styles.userRoleSubtitle}>
-                {currentUser.role} • Mã: {currentUser.code}
+                {getRoleLabel(currentUser.role)} • Mã: {currentUser.code}
               </Text>
             </View>
           </View>
@@ -442,8 +455,10 @@ export const RoomDetailScreen: React.FC = () => {
               value={purpose}
               onChangeText={setPurpose}
               placeholder={
-                currentUser.role === 'Giảng viên'
+                currentUser.role === 'lecturer'
                   ? 'Ví dụ: Hướng dẫn đồ án, Dạy bù môn học...'
+                  : currentUser.role === 'admin'
+                  ? 'Ví dụ: Họp hội đồng, Tiếp đoàn đối tác...'
                   : 'Ví dụ: Họp nhóm đồ án môn AI, Tự học ôn thi...'
               }
               placeholderTextColor={theme.colors.textMuted}

@@ -48,7 +48,6 @@ export const HomeScreen: React.FC = () => {
 
   // Zustand Store: Quản lý trạng thái client (phiên, bộ lọc, lượt đặt)
   const currentUser = useBookingStore((state) => state.currentUser);
-  const switchUserRole = useBookingStore((state) => state.switchUserRole);
   const filters = useBookingStore((state) => state.filters);
   const setSearchQuery = useBookingStore((state) => state.setSearchQuery);
   const setSelectedBuilding = useBookingStore((state) => state.setSelectedBuilding);
@@ -204,7 +203,6 @@ export const HomeScreen: React.FC = () => {
       <Header
         user={currentUser}
         selectedDate={filters.selectedDate}
-        onToggleUserRole={() => switchUserRole()}
         unreadCount={unreadCount}
         onPressNotifications={() => navigation.navigate('Notifications')}
       />

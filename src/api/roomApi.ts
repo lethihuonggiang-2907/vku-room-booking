@@ -1,4 +1,4 @@
-import { Room, TimeSlotId } from '../types';
+import { Room, TimeSlotId, UserRole } from '../types';
 import { MOCK_ROOMS } from '../data/mockRooms';
 
 export interface CreateBookingApiParams {
@@ -11,7 +11,7 @@ export interface CreateBookingApiParams {
   userId: string;
   userName: string;
   userCode: string;
-  userRole: 'Sinh viên' | 'Giảng viên';
+  userRole: UserRole | string;
 }
 
 export interface ApiResponse<T> {

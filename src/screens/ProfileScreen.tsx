@@ -16,6 +16,7 @@ import { Badge } from '../components/Badge';
 import { AppPressable } from '../components/AppPressable';
 import { sendDemoTestNotification } from '../utils/notificationService';
 import { useNotifications } from '../hooks/useNotifications';
+import { getRoleLabel } from '../constants/authConstants';
 import { theme } from '../theme';
 
 export const ProfileScreen: React.FC = () => {
@@ -30,7 +31,8 @@ export const ProfileScreen: React.FC = () => {
   const confirmedCount = userBookings.filter((b) => b.status === 'confirmed').length;
   const cancelledCount = userBookings.filter((b) => b.status === 'cancelled').length;
 
-  const isLecturer = currentUser.role === 'Giảng viên';
+  const isLecturer = currentUser.role === 'lecturer';
+  const isAdmin = currentUser.role === 'admin';
 
   // Handler cho nút demo thông báo 5 giây
   const handleSendDemoNotification = async () => {
@@ -73,19 +75,25 @@ export const ProfileScreen: React.FC = () => {
           <Image source={{ uri: currentUser.avatar }} style={styles.avatar} />
           <Text style={styles.userName}>{currentUser.name}</Text>
           <Text style={styles.userCode}>
-            {isLecturer ? 'Mã cán bộ' : 'MSSV'}: {currentUser.code}
+            {isAdmin ? 'Mã cán bộ QTV' : isLecturer ? 'Mã giảng viên' : 'MSSV'}: {currentUser.code}
           </Text>
 
           <View style={styles.roleBadgeContainer}>
             <Badge
-              label={currentUser.role}
-              variant={isLecturer ? 'warning' : 'primary'}
+              label={getRoleLabel(currentUser.role)}
+              variant={isAdmin ? 'danger' : isLecturer ? 'warning' : 'primary'}
               size="md"
               icon={
                 <Ionicons
-                  name={isLecturer ? 'school' : 'person'}
+                  name={isAdmin ? 'shield-checkmark' : isLecturer ? 'school' : 'person'}
                   size={14}
-                  color={isLecturer ? theme.colors.warning : theme.colors.primary}
+                  color={
+                    isAdmin
+                      ? theme.colors.danger
+                      : isLecturer
+                      ? theme.colors.warning
+                      : theme.colors.primary
+                  }
                 />
               }
             />
@@ -97,11 +105,11 @@ export const ProfileScreen: React.FC = () => {
             onPress={() => switchUserRole()}
             scaleTo={0.96}
             accessibilityRole="button"
-            accessibilityLabel={`Chuyển sang vai trò ${isLecturer ? 'Sinh viên' : 'Giảng viên'}`}
+            accessibilityLabel="Đổi vai trò tài khoản demo"
           >
             <Ionicons name="swap-horizontal" size={18} color={theme.colors.white} />
             <Text style={styles.switchButtonText}>
-              Chuyển sang vai trò {isLecturer ? 'Sinh viên' : 'Giảng viên'}
+              Đổi vai trò demo ({getRoleLabel(currentUser.role)})
             </Text>
           </AppPressable>
         </View>

@@ -10,12 +10,13 @@ import { User } from '../types';
 import { NotificationBell } from './NotificationBell';
 import { AppPressable } from './AppPressable';
 import { formatDateVietnamese } from '../utils/dateUtils';
+import { getRoleLabel } from '../constants/authConstants';
 import { theme } from '../theme';
 
 interface HeaderProps {
   user: User;
   selectedDate: string;
-  onToggleUserRole: () => void;
+  onToggleUserRole?: () => void;
   onOpenProfile?: () => void;
   unreadCount?: number;
   onPressNotifications?: () => void;
@@ -24,16 +25,17 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   user,
   selectedDate,
-  onToggleUserRole,
   onOpenProfile,
   unreadCount = 0,
   onPressNotifications,
 }) => {
-  const isLecturer = user.role === 'Giảng viên';
+  const isLecturer = user.role === 'lecturer';
+  const isAdmin = user.role === 'admin';
+  const roleLabel = getRoleLabel(user.role);
 
   return (
     <View style={styles.header}>
-      {/* Hàng 1: Logo và tên app ở bên trái, nút vai trò và chuông ở bên phải, căn giữa theo chiều dọc */}
+      {/* Hàng 1: Logo và tên app ở bên trái, nhãn vai trò và chuông ở bên phải, căn giữa theo chiều dọc */}
       <View style={styles.topRow}>
         <View style={styles.brandContainer}>
           <View style={styles.logoBadge}>
@@ -47,24 +49,42 @@ export const Header: React.FC<HeaderProps> = ({
           </View>
         </View>
 
-        {/* Nút vai trò và chuông thông báo */}
+        {/* Nhãn vai trò của người đang đăng nhập và chuông thông báo */}
         <View style={styles.topRightActions}>
-          <AppPressable
-            style={styles.roleToggleButton}
-            onPress={onToggleUserRole}
-            scaleTo={0.94}
-            accessibilityRole="button"
-            accessibilityLabel={`Đổi vai trò. Hiện tại là ${user.role}`}
+          <View
+            style={[
+              styles.roleBadgeDisplay,
+              isAdmin
+                ? styles.roleBadgeAdmin
+                : isLecturer
+                ? styles.roleBadgeLecturer
+                : styles.roleBadgeStudent,
+            ]}
           >
             <Ionicons
-              name={isLecturer ? 'school' : 'person'}
-              size={15}
-              color={theme.colors.primary}
+              name={isAdmin ? 'shield-checkmark' : isLecturer ? 'school' : 'person'}
+              size={13}
+              color={
+                isAdmin
+                  ? theme.colors.dangerDark
+                  : isLecturer
+                  ? '#B45309'
+                  : theme.colors.primary
+              }
             />
-            <Text style={styles.roleToggleText}>
-              {user.role} (Đổi)
+            <Text
+              style={[
+                styles.roleBadgeDisplayText,
+                isAdmin
+                  ? styles.roleBadgeTextAdmin
+                  : isLecturer
+                  ? styles.roleBadgeTextLecturer
+                  : styles.roleBadgeTextStudent,
+              ]}
+            >
+              {roleLabel}
             </Text>
-          </AppPressable>
+          </View>
 
           {onPressNotifications && (
             <NotificationBell
@@ -153,22 +173,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  roleToggleButton: {
+  roleBadgeDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.primaryLight,
-    paddingVertical: 7,
-    paddingHorizontal: 11,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    minHeight: 38,
+    minHeight: 34,
   },
-  roleToggleText: {
+  roleBadgeStudent: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  roleBadgeLecturer: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  roleBadgeAdmin: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FECACA',
+  },
+  roleBadgeDisplayText: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.primary,
     marginLeft: 5,
+  },
+  roleBadgeTextStudent: {
+    color: theme.colors.primary,
+  },
+  roleBadgeTextLecturer: {
+    color: '#92400E',
+  },
+  roleBadgeTextAdmin: {
+    color: theme.colors.dangerDark,
   },
   bottomRow: {
     flexDirection: 'row',

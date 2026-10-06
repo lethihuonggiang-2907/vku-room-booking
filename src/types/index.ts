@@ -33,15 +33,22 @@ export interface TimeSlot {
   period: 'Sáng' | 'Chiều';
 }
 
-export type UserRole = 'Sinh viên' | 'Giảng viên';
+export type UserRole = 'student' | 'lecturer' | 'admin';
+export type AuthProvider = 'email' | 'google' | 'facebook';
 
 export interface User {
   id: string;
-  name: string;
-  code: string;       // MSSV hoặc Mã cán bộ
-  email: string;
-  role: UserRole;
-  department: string;
+  name: string;               // Họ và tên
+  email: string;              // Email trường
+  role: UserRole;             // 3 vai trò: student (Sinh viên), lecturer (Giảng viên), admin (Quản trị viên)
+  schoolName: string;         // Tên trường
+  department: string;         // Khoa / Đơn vị
+  identifierCode: string;     // Mã định danh theo vai trò (mã SV / mã GV / mã cán bộ)
+  code: string;               // Giữ tương thích ngược (alias identifierCode)
+  className?: string;         // Lớp (chỉ sinh viên)
+  academicYear?: string;      // Niên khóa (chỉ sinh viên)
+  academicDegree?: string;    // Học vị (tùy chọn cho giảng viên)
+  authProvider: AuthProvider; // email | google | facebook
   avatar: string;
 }
 
@@ -61,7 +68,7 @@ export interface Booking {
   userId: string;
   userName: string;
   userCode: string;
-  userRole: UserRole;
+  userRole: UserRole | string;
   purpose: string;
   attendeesCount: number;
   status: BookingStatus;
@@ -86,6 +93,7 @@ export type AppNotificationType =
 
 export interface AppNotification {
   id: string;
+  userId?: string;     // Gắn theo id người dùng để phân tách dữ liệu
   type: AppNotificationType;
   title: string;
   content: string;
@@ -95,7 +103,13 @@ export interface AppNotification {
 }
 
 // Navigation types
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: { initialRole?: UserRole } | undefined;
+};
+
 export type RootStackParamList = {
+  Auth: undefined;
   MainTabs: undefined;
   RoomDetail: { roomId: string };
   BookingSuccess: { bookingId: string };
@@ -106,5 +120,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   HomeTab: undefined;
   MyBookingsTab: undefined;
+  AdminTab: undefined;
   ProfileTab: undefined;
 };
+

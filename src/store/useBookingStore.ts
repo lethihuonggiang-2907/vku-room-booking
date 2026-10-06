@@ -17,21 +17,43 @@ import { generateBookingCode, getTodayDateString } from '../utils/dateUtils';
 export const DEFAULT_STUDENT_USER: User = {
   id: 'usr-sv-01',
   name: 'Lê Thị Hương Giang',
-  code: '21IT2907',
   email: 'giang.lth@vku.udn.vn',
-  role: 'Sinh viên',
+  role: 'student',
+  schoolName: 'Trường ĐH CNTT & TT Việt - Hàn',
   department: 'Khoa Công nghệ Thông tin & Truyền thông',
+  identifierCode: '21IT2907',
+  code: '21IT2907',
+  className: '21IT1',
+  academicYear: '2021 - 2026',
+  authProvider: 'email',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
 };
 
 export const DEFAULT_LECTURER_USER: User = {
   id: 'usr-gv-01',
   name: 'TS. Nguyễn Văn Hùng',
-  code: 'VKU-GV1024',
   email: 'hung.nv@vku.udn.vn',
-  role: 'Giảng viên',
+  role: 'lecturer',
+  schoolName: 'Trường ĐH CNTT & TT Việt - Hàn',
   department: 'Khoa Khoa học Máy tính',
+  identifierCode: 'VKU-GV1024',
+  code: 'VKU-GV1024',
+  academicDegree: 'Tiến sĩ',
+  authProvider: 'email',
   avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+};
+
+export const DEFAULT_ADMIN_USER: User = {
+  id: 'usr-admin-01',
+  name: 'Quản trị viên VKU',
+  email: 'admin@vku.udn.vn',
+  role: 'admin',
+  schoolName: 'Trường ĐH CNTT & TT Việt - Hàn',
+  department: 'Phòng Hành chính - Tổ chức',
+  identifierCode: 'VKU-CB001',
+  code: 'VKU-CB001',
+  authProvider: 'email',
+  avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80',
 };
 
 const initialFilters: FilterState = {
@@ -133,18 +155,17 @@ export const useBookingStore = create<BookingStoreState>()(
       filters: initialFilters,
       bookings: createInitialBookings(),
 
-      // Đổi vai trò Sinh viên <-> Giảng viên
+      // Đổi vai trò Sinh viên <-> Giảng viên <-> Quản trị viên (demo / dev)
       switchUserRole: (targetRole?: UserRole) => {
         const current = get().currentUser;
         if (targetRole) {
-          set({
-            currentUser: targetRole === 'Giảng viên' ? DEFAULT_LECTURER_USER : DEFAULT_STUDENT_USER,
-          });
+          if (targetRole === 'admin') set({ currentUser: DEFAULT_ADMIN_USER });
+          else if (targetRole === 'lecturer') set({ currentUser: DEFAULT_LECTURER_USER });
+          else set({ currentUser: DEFAULT_STUDENT_USER });
         } else {
-          set({
-            currentUser:
-              current.role === 'Sinh viên' ? DEFAULT_LECTURER_USER : DEFAULT_STUDENT_USER,
-          });
+          if (current.role === 'student') set({ currentUser: DEFAULT_LECTURER_USER });
+          else if (current.role === 'lecturer') set({ currentUser: DEFAULT_ADMIN_USER });
+          else set({ currentUser: DEFAULT_STUDENT_USER });
         }
       },
 
@@ -267,7 +288,13 @@ export const useBookingStore = create<BookingStoreState>()(
           userName: user.name,
           userCode: user.code,
           userRole: user.role,
-          purpose: purpose || (user.role === 'Giảng viên' ? 'Giảng dạy & Cố vấn' : 'Học tập nhóm'),
+          purpose:
+            purpose ||
+            (user.role === 'lecturer'
+              ? 'Giảng dạy & Cố vấn'
+              : user.role === 'admin'
+              ? 'Quản lý & Điều phối phòng học'
+              : 'Học tập nhóm'),
           attendeesCount: attendeesCount || 2,
           status: 'confirmed',
           createdAt: new Date().toISOString(),
