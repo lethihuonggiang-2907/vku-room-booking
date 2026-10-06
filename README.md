@@ -51,11 +51,20 @@ Hệ thống được thiết kế theo mô hình **Dependency Inversion** với
    - `messagingSenderId`
    - `appId`
 
-### Bước 3: Kích hoạt Firebase Authentication
+### Bước 3: Kích hoạt Firebase Authentication (Email/Password & Google)
 1. Trên menu bên trái, chọn **Build** > **Authentication**.
 2. Nhấn **Get started**.
-3. Tại tab **Sign-in method**, chọn **Email/Password**.
-4. Bật công tắc **Email/Password** (không cần bật Email link), sau đó nhấn **Save**.
+3. Tại tab **Sign-in method**, chọn **Email/Password**:
+   - Bật công tắc **Email/Password** (không cần bật Email link), sau đó nhấn **Save**.
+4. Tiếp tục tại tab **Sign-in method**, thêm nhà cung cấp **Google**:
+   - Nhấn **Add new provider** > chọn **Google**.
+   - Bật công tắc **Enable**.
+   - Chọn **Project support email** (email quản trị dự án).
+   - Nhấn **Save**.
+5. **Kiểm tra Authorized domains (Tên miền được cấp phép):**
+   - Chuyển sang tab **Settings** trong Authentication > cuộn xuống mục **Authorized domains**.
+   - Mặc định Firebase đã cấp phép `localhost` và `<project-id>.firebaseapp.com`.
+   - Đảm bảo `localhost` có trong danh sách để đăng nhập popup Google hoạt động trơn tru trên môi trường dev Web (`http://localhost:8081`). Nếu chạy bằng domain khác hoặc IP mạng LAN, hãy nhấn **Add domain** để thêm vào.
 
 ### Bước 4: Tạo Cloud Firestore Database
 1. Trên menu bên trái, chọn **Build** > **Firestore Database**.
@@ -143,13 +152,21 @@ npx expo start --tunnel -c
 ### 2. Kiểm thử trên Trình duyệt Web (Khung 390px):
 1. Nhấn phím `w` trong terminal hoặc truy cập `http://localhost:8081`.
 2. Mở Công cụ phát triển trình duyệt (F12) > Bật chế độ Responsive Device Toolbar > Chọn thiết bị **iPhone 12/13/14/15 Pro (390 x 844)**.
-3. Quan sát và kiểm tra đăng nhập:
+3. Quan sát và kiểm tra xác thực:
    - Huy hiệu `Chế độ: Firebase Cloud` (hoặc `Chế độ demo/offline`) hiển thị rõ ràng trên màn hình.
-   - **Đăng nhập Quản trị viên:** Nhập email `admin@vku.udn.vn` và mật khẩu đã tạo trên Firebase Console trực tiếp qua form Đăng nhập.
-   - **Đăng nhập Sinh viên / Giảng viên:** Nhấn "Đăng ký ngay" để tạo tài khoản, sau đó đăng nhập bằng email và mật khẩu vừa đăng ký.
-   - Toàn bộ mật khẩu đều do người dùng tự nhập qua form, không sử dụng mật khẩu hay nút demo cứng trong mã nguồn.
+   - **Đăng nhập Quản trị viên:** Nhập email `admin@vku.udn.vn` và mật khẩu đã tạo trên Firebase Console trực tiếp qua form Đăng nhập (không dùng nút demo).
+   - **Đăng ký tài khoản mới:**
+     - Nhấn "Đăng ký ngay", điền thông tin và nhấn "Đăng ký tài khoản".
+     - Hệ thống **không tự đăng nhập** mà chuyển hướng trở lại màn hình Đăng nhập.
+     - Email vừa đăng ký được điền sẵn, mật khẩu để trống, kèm thông báo thành công màu xanh lá: *"Đăng ký thành công! Vui lòng đăng nhập để tiếp tục."*
+   - **Đăng nhập Google thật (Chỉ nền tảng Web):**
+     - Nhấn nút biểu tượng **Google**. Cửa sổ popup Google sẽ xuất hiện.
+     - Chọn tài khoản Google để đăng nhập. Khi thành công, ứng dụng tự động chuyển vào màn hình chính.
+     - Nếu là lần đầu tiên đăng nhập, hệ thống tự động khởi tạo hồ sơ sinh viên (`role: 'student'`) trên Cloud Firestore.
+     - Nếu tài khoản đã tồn tại trên Firestore (kể cả đã được nâng quyền admin), hệ thống giữ nguyên vai trò cũ.
 
 ### 3. Kiểm thử trên iPhone (iOS) & Android:
 1. Mở ứng dụng **Expo Go** trên điện thoại.
 2. Quét mã QR hiển thị trong terminal.
-3. Trải nghiệm hiệu ứng mượt mà: Animation thẻ phòng, chọn slot đặt phòng, chuông thông báo, phản hồi rung Haptics, và xác thực Firebase Auth được lưu phiên liên tục khi khởi động lại app.
+3. Khi nhấn nút Google trên điện thoại, hệ thống sẽ hiển thị thông báo rõ ràng: *"Đăng nhập Google hiện chỉ hỗ trợ trên web. Vui lòng đăng nhập bằng Email trường và Mật khẩu."*
+4. Trải nghiệm hiệu ứng mượt mà: Animation thẻ phòng, chọn slot đặt phòng, chuông thông báo, phản hồi rung Haptics, và xác thực Firebase Auth được lưu phiên liên tục khi khởi động lại app.

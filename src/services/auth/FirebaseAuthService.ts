@@ -1,6 +1,9 @@
+import { Platform } from 'react-native';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   deleteUser,
@@ -58,6 +61,16 @@ export const translateFirebaseError = (error: unknown): string => {
       return 'Bạn đã thử sai quá nhiều lần. Vui lòng tạm đợi vài phút rồi thử lại.';
     case 'auth/operation-not-allowed':
       return 'Phương thức đăng nhập Email/Password chưa được kích hoạt trong Firebase Console.';
+    case 'auth/popup-closed-by-user':
+      return 'Cửa sổ đăng nhập Google đã bị đóng trước khi hoàn tất.';
+    case 'auth/popup-blocked':
+      return 'Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng cho phép popup để đăng nhập Google.';
+    case 'auth/cancelled-popup-request':
+      return 'Yêu cầu mở cửa sổ đăng nhập đã bị hủy.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Tài khoản đã tồn tại với một phương thức đăng nhập khác. Vui lòng đăng nhập bằng Email/Password.';
+    case 'auth/unauthorized-domain':
+      return 'Tên miền chưa được cấp phép trong Firebase Console. Vui lòng kiểm tra Authorized domains.';
     case 'permission-denied':
       return 'Từ chối quyền truy cập dữ liệu (Firestore Rules). Vui lòng kiểm tra quyền hạn.';
     case 'unavailable':
@@ -275,9 +288,113 @@ export class FirebaseAuthService implements AuthService {
 
   /**
    * Đăng nhập thông qua Google / Facebook:
-   * Theo yêu cầu bài toán, các nút Google và Facebook vẫn là luồng giả lập (mô phỏng SSO).
+   * - Google (trên Web): Gọi signInWithPopup và GoogleAuthProvider từ Firebase JS SDK.
+   *   Tự động đọc hoặc tạo hồ sơ Firestore users/{uid} với role 'student' (KHÔNG BAO GIỜ 'admin').
+   * - Google (trên iOS / Android): Báo lỗi chỉ hỗ trợ trên web.
+   * - Facebook: Giữ luồng mô phỏng SSO.
    */
   async loginWithProvider(dto: ProviderLoginDTO): Promise<User> {
+    if (dto.provider === 'google') {
+      if (Platform.OS !== 'web') {
+        throw new Error('Đăng nhập Google hiện chỉ hỗ trợ trên web. Vui lòng đăng nhập bằng Email và Mật khẩu.');
+      }
+
+      const auth = this.getAuthInstance();
+      const db = this.getFirestoreInstance();
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      let userCredential;
+      try {
+        userCredential = await signInWithPopup(auth, provider);
+      } catch (err) {
+        throw new Error(translateFirebaseError(err));
+      }
+
+      const firebaseUser = userCredential.user;
+      const uid = firebaseUser.uid;
+
+      // Đọc hồ sơ từ Firestore users/{uid}
+      const userDocRef = doc(db, 'users', uid);
+      let snap;
+      try {
+        snap = await getDoc(userDocRef);
+      } catch (fsErr) {
+        try {
+          await signOut(auth);
+        } catch {}
+        throw new Error(`Lỗi kiểm tra hồ sơ Firestore: ${translateFirebaseError(fsErr)}`);
+      }
+
+      if (snap.exists()) {
+        // Đã có hồ sơ -> giữ nguyên role và thông tin, không ghi đè
+        const data = snap.data();
+        const role: UserRole = (data.role as UserRole) || 'student';
+
+        return {
+          id: uid,
+          name: data.name || firebaseUser.displayName || 'Người dùng Google',
+          email: data.email || firebaseUser.email || '',
+          role,
+          schoolName: data.schoolName || DEFAULT_SCHOOL_NAME,
+          department: data.department || '',
+          identifierCode: data.identifierCode || data.code || '',
+          code: data.identifierCode || data.code || '',
+          className: data.className || undefined,
+          academicYear: data.academicYear || undefined,
+          academicDegree: data.academicDegree || undefined,
+          authProvider: 'google',
+          avatar: data.avatar || firebaseUser.photoURL || DEFAULT_AVATARS[role],
+        };
+      } else {
+        // Chưa có hồ sơ (lần đầu đăng nhập Google) -> tạo hồ sơ role 'student' (KHÔNG BAO GIỜ 'admin')
+        const defaultCode = 'VKU-G' + uid.substring(0, 6).toUpperCase();
+        const newProfile = {
+          uid,
+          name: firebaseUser.displayName?.trim() || 'Sinh viên VKU',
+          email: firebaseUser.email?.trim().toLowerCase() || '',
+          role: 'student' as UserRole,
+          schoolName: DEFAULT_SCHOOL_NAME,
+          department: 'Khoa Công nghệ Thông tin & Truyền thông',
+          identifierCode: defaultCode,
+          code: defaultCode,
+          className: '',
+          academicYear: '',
+          academicDegree: '',
+          authProvider: 'google',
+          avatar: firebaseUser.photoURL || DEFAULT_AVATARS.student,
+          createdAt: new Date().toISOString(),
+        };
+
+        try {
+          await setDoc(userDocRef, newProfile);
+        } catch (fsCreateErr) {
+          try {
+            await signOut(auth);
+          } catch {}
+          throw new Error(
+            `Lỗi tạo hồ sơ người dùng trên Firestore: ${translateFirebaseError(
+              fsCreateErr
+            )}. Vui lòng thử lại!`
+          );
+        }
+
+        return {
+          id: uid,
+          name: newProfile.name,
+          email: newProfile.email,
+          role: 'student',
+          schoolName: newProfile.schoolName,
+          department: newProfile.department,
+          identifierCode: newProfile.identifierCode,
+          code: newProfile.code,
+          authProvider: 'google',
+          avatar: newProfile.avatar,
+        };
+      }
+    }
+
+    // Luồng giả lập SSO cho Facebook
     const role = dto.mockUser.role;
     const identifierCode =
       dto.mockUser.identifierCode ||

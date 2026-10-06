@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,6 +121,35 @@ export const LoginScreen: React.FC = () => {
       email: email.trim(),
       password,
     });
+  };
+
+  // Xử lý đăng nhập Google
+  const handleGoogleLogin = async () => {
+    clearError();
+    setSuccessMessage(null);
+
+    if (isFirebaseMode) {
+      if (Platform.OS === 'web') {
+        // Trên web: mở popup Google thực tế qua Firebase JS SDK
+        await loginWithProvider({
+          provider: 'google',
+          mockUser: {
+            name: '',
+            email: '',
+            role: 'student',
+          },
+        });
+      } else {
+        // Trên di động (iOS / Android trong Expo Go): thông báo chỉ hỗ trợ trên web
+        const noticeMsg =
+          'Đăng nhập Google hiện chỉ hỗ trợ trên web. Vui lòng đăng nhập bằng Email trường và Mật khẩu.';
+        Alert.alert('Thông báo', noticeMsg);
+        useAuthStore.setState({ error: noticeMsg });
+      }
+    } else {
+      // Chế độ cục bộ: mở modal chọn tài khoản giả lập SSO
+      handleOpenSocialModal('google');
+    }
   };
 
   // Mở modal giả lập đăng nhập mạng xã hội
@@ -327,7 +357,7 @@ export const LoginScreen: React.FC = () => {
             <View style={styles.socialButtonsRow}>
               <TouchableOpacity
                 style={styles.socialBtn}
-                onPress={() => handleOpenSocialModal('google')}
+                onPress={handleGoogleLogin}
                 activeOpacity={0.75}
               >
                 <Ionicons name="logo-google" size={18} color="#EA4335" />
