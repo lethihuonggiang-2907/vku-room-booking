@@ -1,0 +1,361 @@
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  deleteUser,
+  updateProfile,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { User, UserRole } from '../../types';
+import {
+  AuthService,
+  LoginDTO,
+  ProviderLoginDTO,
+  RegisterDTO,
+} from './AuthService';
+import { DEFAULT_SCHOOL_NAME } from '../../constants/authConstants';
+import { getFirebaseAuth, getFirestoreDb } from '../firebase';
+
+// Bộ avatar mặc định theo vai trò nếu người dùng không cung cấp
+const DEFAULT_AVATARS: Record<UserRole, string> = {
+  student:
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  lecturer:
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  admin:
+    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80',
+};
+
+/**
+ * Chuyển đổi mã lỗi Firebase Authentication & Firestore sang thông điệp tiếng Việt thân thiện
+ */
+export const translateFirebaseError = (error: unknown): string => {
+  if (!error || typeof error !== 'object') {
+    return 'Đã có lỗi xảy ra. Vui lòng thử lại!';
+  }
+
+  const err = error as { code?: string; message?: string };
+  const code = err.code || '';
+
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'Địa chỉ email trường không hợp lệ hoặc sai định dạng.';
+    case 'auth/user-disabled':
+      return 'Tài khoản này đã bị tạm khóa. Vui lòng liên hệ ban quản trị.';
+    case 'auth/user-not-found':
+      return 'Không tìm thấy tài khoản với email này. Vui lòng kiểm tra lại.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Email hoặc mật khẩu không chính xác.';
+    case 'auth/email-already-in-use':
+      return 'Email này đã được đăng ký tài khoản khác. Vui lòng đăng nhập.';
+    case 'auth/weak-password':
+      return 'Mật khẩu quá yếu. Mật khẩu phải có tối thiểu 6-8 ký tự.';
+    case 'auth/network-request-failed':
+      return 'Lỗi kết nối mạng. Vui lòng kiểm tra lại đường truyền internet.';
+    case 'auth/too-many-requests':
+      return 'Bạn đã thử sai quá nhiều lần. Vui lòng tạm đợi vài phút rồi thử lại.';
+    case 'auth/operation-not-allowed':
+      return 'Phương thức đăng nhập Email/Password chưa được kích hoạt trong Firebase Console.';
+    case 'permission-denied':
+      return 'Từ chối quyền truy cập dữ liệu (Firestore Rules). Vui lòng kiểm tra quyền hạn.';
+    case 'unavailable':
+      return 'Dịch vụ máy chủ Firebase tạm thời không phản hồi. Vui lòng thử lại sau.';
+    default:
+      if (err.message && err.message.length > 0) {
+        return err.message;
+      }
+      return 'Đã có lỗi xảy ra trong quá trình xác thực. Vui lòng thử lại!';
+  }
+};
+
+/**
+ * Lớp triển khai AuthService sử dụng Firebase Authentication và Cloud Firestore (Web JS SDK v9-v12).
+ * Hoạt động mượt mà trên Expo Go (iOS, Android) và Web.
+ */
+export class FirebaseAuthService implements AuthService {
+  private getAuthInstance() {
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      throw new Error(
+        'Firebase Auth chưa được khởi tạo. Vui lòng kiểm tra biến môi trường EXPO_PUBLIC_FIREBASE_* trong .env.'
+      );
+    }
+    return auth;
+  }
+
+  private getFirestoreInstance() {
+    const db = getFirestoreDb();
+    if (!db) {
+      throw new Error(
+        'Cloud Firestore chưa được khởi tạo. Vui lòng kiểm tra biến môi trường EXPO_PUBLIC_FIREBASE_* trong .env.'
+      );
+    }
+    return db;
+  }
+
+  /**
+   * Đăng ký tài khoản người dùng mới:
+   * 1. Kiểm tra quyền admin: client TUYỆT ĐỐI không được tự tạo tài khoản vai trò admin.
+   * 2. Tạo tài khoản trong Firebase Authentication (createUserWithEmailAndPassword).
+   * 3. Lưu hồ sơ người dùng vào Firestore collection 'users' với ID là uid.
+   * 4. Nếu lưu Firestore bị lỗi, tự động xóa (rollback) tài khoản Auth vừa tạo để tránh mồ côi.
+   */
+  async register(dto: RegisterDTO): Promise<User> {
+    // Ràng buộc bảo mật: Chế độ Firebase không cho client tự cấp quyền admin
+    if (dto.role === 'admin') {
+      throw new Error(
+        'Chế độ Firebase không cho phép tự đăng ký quyền Quản trị viên từ ứng dụng. Tài khoản Admin chỉ được tạo và gán quyền trực tiếp trên Firebase Console.'
+      );
+    }
+
+    const auth = this.getAuthInstance();
+    const db = this.getFirestoreInstance();
+
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const cleanIdentifier = dto.identifierCode.trim().toUpperCase();
+    const assignedAvatar =
+      dto.avatar || DEFAULT_AVATARS[dto.role] || DEFAULT_AVATARS.student;
+
+    let userCredential;
+    try {
+      userCredential = await createUserWithEmailAndPassword(
+        auth,
+        normalizedEmail,
+        dto.password
+      );
+    } catch (err) {
+      throw new Error(translateFirebaseError(err));
+    }
+
+    const uid = userCredential.user.uid;
+
+    // Cập nhật tên hiển thị trên Auth profile
+    try {
+      await updateProfile(userCredential.user, {
+        displayName: dto.name.trim(),
+      });
+    } catch {
+      // Tiếp tục nếu cập nhật display name không thành công
+    }
+
+    // Chuẩn bị dữ liệu hồ sơ Firestore theo đúng đặc tả
+    const profileData = {
+      uid,
+      name: dto.name.trim(),
+      email: normalizedEmail,
+      role: dto.role,
+      schoolName: dto.schoolName?.trim() || DEFAULT_SCHOOL_NAME,
+      department: dto.department,
+      identifierCode: cleanIdentifier,
+      code: cleanIdentifier,
+      className: dto.role === 'student' ? dto.className?.trim() || '' : '',
+      academicYear: dto.role === 'student' ? dto.academicYear?.trim() || '' : '',
+      academicDegree: dto.role === 'lecturer' ? dto.academicDegree?.trim() || '' : '',
+      authProvider: 'email',
+      avatar: assignedAvatar,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Ghi hồ sơ vào Firestore users/{uid}
+    try {
+      await setDoc(doc(db, 'users', uid), profileData);
+    } catch (firestoreErr) {
+      // NGUY CƠ: Nếu ghi Firestore thất bại, tài khoản Auth sẽ bị mồ côi (không có hồ sơ)
+      // XỬ LÝ: Tự động rollback tài khoản Auth và thông báo lỗi rõ ràng
+      try {
+        await deleteUser(userCredential.user);
+      } catch (deleteErr) {
+        console.warn('[FirebaseAuthService] Không thể xóa user mồ côi sau lỗi Firestore:', deleteErr);
+      }
+
+      throw new Error(
+        `Lỗi khi lưu hồ sơ người dùng vào Firestore: ${translateFirebaseError(
+          firestoreErr
+        )}. Tài khoản chưa được tạo hoàn tất, vui lòng thử lại!`
+      );
+    }
+
+    return {
+      id: uid,
+      name: profileData.name,
+      email: profileData.email,
+      role: profileData.role,
+      schoolName: profileData.schoolName,
+      department: profileData.department,
+      identifierCode: profileData.identifierCode,
+      code: profileData.code,
+      className: profileData.className || undefined,
+      academicYear: profileData.academicYear || undefined,
+      academicDegree: profileData.academicDegree || undefined,
+      authProvider: 'email',
+      avatar: profileData.avatar,
+    };
+  }
+
+  /**
+   * Đăng nhập bằng Email và Mật khẩu:
+   * 1. Xác thực qua signInWithEmailAndPassword.
+   * 2. Đọc hồ sơ người dùng từ Firestore users/{uid}.
+   */
+  async login(dto: LoginDTO): Promise<User> {
+    const auth = this.getAuthInstance();
+    const db = this.getFirestoreInstance();
+
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    let userCredential;
+    try {
+      userCredential = await signInWithEmailAndPassword(
+        auth,
+        normalizedEmail,
+        dto.password
+      );
+    } catch (err) {
+      throw new Error(translateFirebaseError(err));
+    }
+
+    const uid = userCredential.user.uid;
+
+    // Đọc hồ sơ chi tiết từ Firestore users/{uid}
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      if (!snap.exists()) {
+        throw new Error(
+          'Tài khoản này chưa có dữ liệu hồ sơ trong Firestore. Vui lòng liên hệ Quản trị viên để kiểm tra collection users.'
+        );
+      }
+
+      const data = snap.data();
+      const role: UserRole = (data.role as UserRole) || 'student';
+
+      return {
+        id: uid,
+        name: data.name || userCredential.user.displayName || 'Người dùng VKU',
+        email: data.email || userCredential.user.email || normalizedEmail,
+        role,
+        schoolName: data.schoolName || DEFAULT_SCHOOL_NAME,
+        department: data.department || '',
+        identifierCode: data.identifierCode || data.code || '',
+        code: data.identifierCode || data.code || '',
+        className: data.className || undefined,
+        academicYear: data.academicYear || undefined,
+        academicDegree: data.academicDegree || undefined,
+        authProvider: 'email',
+        avatar: data.avatar || DEFAULT_AVATARS[role] || DEFAULT_AVATARS.student,
+      };
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('chưa có dữ liệu hồ sơ')) {
+        throw err;
+      }
+      throw new Error(
+        `Lỗi khi tải hồ sơ từ Firestore: ${translateFirebaseError(err)}`
+      );
+    }
+  }
+
+  /**
+   * Đăng nhập thông qua Google / Facebook:
+   * Theo yêu cầu bài toán, các nút Google và Facebook vẫn là luồng giả lập (mô phỏng SSO).
+   */
+  async loginWithProvider(dto: ProviderLoginDTO): Promise<User> {
+    const role = dto.mockUser.role;
+    const identifierCode =
+      dto.mockUser.identifierCode ||
+      (role === 'student' ? '21IT2907' : role === 'lecturer' ? 'VKU-GV1024' : 'VKU-CB001');
+
+    return {
+      id: dto.mockUser.id || `usr-${dto.provider}-${Date.now()}`,
+      name: dto.mockUser.name,
+      email: dto.mockUser.email,
+      role,
+      schoolName: DEFAULT_SCHOOL_NAME,
+      department: dto.mockUser.department || 'Khoa Công nghệ Thông tin & Truyền thông',
+      identifierCode,
+      code: identifierCode,
+      className: dto.mockUser.className,
+      academicYear: dto.mockUser.academicYear,
+      academicDegree: dto.mockUser.academicDegree,
+      authProvider: dto.provider,
+      avatar:
+        dto.mockUser.avatar || DEFAULT_AVATARS[role] || DEFAULT_AVATARS.student,
+    };
+  }
+
+  /**
+   * Đăng xuất khỏi Firebase Auth
+   */
+  async logout(): Promise<void> {
+    const auth = this.getAuthInstance();
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn('[FirebaseAuthService] Lỗi khi signOut:', err);
+    }
+  }
+
+  /**
+   * Khôi phục phiên làm việc:
+   * Lắng nghe onAuthStateChanged, nếu đã có phiên thì đọc hồ sơ Firestore users/{uid}.
+   */
+  async restoreSession(): Promise<User | null> {
+    const auth = this.getAuthInstance();
+    const db = this.getFirestoreInstance();
+
+    return new Promise<User | null>((resolve) => {
+      // Thiết lập timeout 5s đề phòng trường hợp mất mạng khi mở app
+      const timeout = setTimeout(() => {
+        resolve(null);
+      }, 5000);
+
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        async (firebaseUser) => {
+          unsubscribe();
+          clearTimeout(timeout);
+
+          if (!firebaseUser) {
+            resolve(null);
+            return;
+          }
+
+          try {
+            const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (!snap.exists()) {
+              resolve(null);
+              return;
+            }
+
+            const data = snap.data();
+            const role: UserRole = (data.role as UserRole) || 'student';
+
+            resolve({
+              id: firebaseUser.uid,
+              name: data.name || firebaseUser.displayName || 'Người dùng VKU',
+              email: data.email || firebaseUser.email || '',
+              role,
+              schoolName: data.schoolName || DEFAULT_SCHOOL_NAME,
+              department: data.department || '',
+              identifierCode: data.identifierCode || data.code || '',
+              code: data.identifierCode || data.code || '',
+              className: data.className || undefined,
+              academicYear: data.academicYear || undefined,
+              academicDegree: data.academicDegree || undefined,
+              authProvider: 'email',
+              avatar: data.avatar || DEFAULT_AVATARS[role] || DEFAULT_AVATARS.student,
+            });
+          } catch (err) {
+            console.warn('[FirebaseAuthService] Lỗi khi khôi phục hồ sơ:', err);
+            resolve(null);
+          }
+        },
+        (error) => {
+          clearTimeout(timeout);
+          console.warn('[FirebaseAuthService] Lỗi onAuthStateChanged:', error);
+          resolve(null);
+        }
+      );
+    });
+  }
+}
