@@ -17,7 +17,7 @@ import {
   ProviderLoginDTO,
   RegisterDTO,
 } from './AuthService';
-import { DEFAULT_SCHOOL_NAME } from '../../constants/authConstants';
+import { DEFAULT_SCHOOL_NAME, getRoleLabel } from '../../constants/authConstants';
 import { getFirebaseAuth, getFirestoreDb } from '../firebase';
 
 // Bộ avatar mặc định theo vai trò nếu người dùng không cung cấp
@@ -253,6 +253,9 @@ export class FirebaseAuthService implements AuthService {
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (!snap.exists()) {
+        try {
+          await signOut(auth);
+        } catch {}
         throw new Error(
           'Tài khoản này chưa có dữ liệu hồ sơ trong Firestore. Vui lòng liên hệ Quản trị viên để kiểm tra collection users.'
         );
@@ -260,6 +263,16 @@ export class FirebaseAuthService implements AuthService {
 
       const data = snap.data();
       const role: UserRole = (data.role as UserRole) || 'student';
+
+      // Đối chiếu vai trò: Nếu profile.role khác vai trò đã chọn thì gọi signOut() và báo lỗi
+      if (dto.selectedRole && role !== dto.selectedRole) {
+        try {
+          await signOut(auth);
+        } catch {}
+        throw new Error(
+          `Tài khoản này thuộc vai trò ${getRoleLabel(role)}. Vui lòng chọn đúng vai trò để đăng nhập.`
+        );
+      }
 
       return {
         id: uid,
@@ -273,13 +286,21 @@ export class FirebaseAuthService implements AuthService {
         className: data.className || undefined,
         academicYear: data.academicYear || undefined,
         academicDegree: data.academicDegree || undefined,
-        authProvider: 'email',
+        authProvider: (data.authProvider as any) || 'email',
         avatar: data.avatar || DEFAULT_AVATARS[role] || DEFAULT_AVATARS.student,
       };
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('chưa có dữ liệu hồ sơ')) {
-        throw err;
+      if (err instanceof Error) {
+        if (
+          err.message.includes('chưa có dữ liệu hồ sơ') ||
+          err.message.includes('Tài khoản này thuộc vai trò')
+        ) {
+          throw err;
+        }
       }
+      try {
+        await signOut(auth);
+      } catch {}
       throw new Error(
         `Lỗi khi tải hồ sơ từ Firestore: ${translateFirebaseError(err)}`
       );
@@ -289,9 +310,11 @@ export class FirebaseAuthService implements AuthService {
   /**
    * Đăng nhập thông qua Google / Facebook:
    * - Google (trên Web): Gọi signInWithPopup và GoogleAuthProvider từ Firebase JS SDK.
-   *   Tự động đọc hoặc tạo hồ sơ Firestore users/{uid} với role 'student' (KHÔNG BAO GIỜ 'admin').
+   *   Nếu là lần đầu: Người dùng chọn Sinh viên hoặc Giảng viên thì tạo hồ sơ tương ứng.
+   *   Nếu chọn Quản trị viên mà chưa có hồ sơ thì từ chối báo "Tài khoản Quản trị viên chỉ được cấp qua console".
+   *   Nếu đã có hồ sơ: Đối chiếu vai trò đã chọn với profile.role, nếu sai thì signOut() và báo lỗi.
    * - Google (trên iOS / Android): Báo lỗi chỉ hỗ trợ trên web.
-   * - Facebook: Giữ luồng mô phỏng SSO.
+   * - Facebook: Giữ luồng mô phỏng SSO kèm đối chiếu vai trò.
    */
   async loginWithProvider(dto: ProviderLoginDTO): Promise<User> {
     if (dto.provider === 'google') {
@@ -331,6 +354,16 @@ export class FirebaseAuthService implements AuthService {
         const data = snap.data();
         const role: UserRole = (data.role as UserRole) || 'student';
 
+        // Đối chiếu vai trò: Nếu profile.role khác vai trò đã chọn thì gọi signOut() và báo lỗi
+        if (dto.selectedRole && role !== dto.selectedRole) {
+          try {
+            await signOut(auth);
+          } catch {}
+          throw new Error(
+            `Tài khoản này thuộc vai trò ${getRoleLabel(role)}. Vui lòng chọn đúng vai trò để đăng nhập.`
+          );
+        }
+
         return {
           id: uid,
           name: data.name || firebaseUser.displayName || 'Người dùng Google',
@@ -347,22 +380,42 @@ export class FirebaseAuthService implements AuthService {
           avatar: data.avatar || firebaseUser.photoURL || DEFAULT_AVATARS[role],
         };
       } else {
-        // Chưa có hồ sơ (lần đầu đăng nhập Google) -> tạo hồ sơ role 'student' (KHÔNG BAO GIỜ 'admin')
-        const defaultCode = 'VKU-G' + uid.substring(0, 6).toUpperCase();
+        // Chưa có hồ sơ (lần đầu đăng nhập Google)
+        // Nếu đang chọn "Quản trị viên" mà chưa có hồ sơ thì từ chối
+        if (dto.selectedRole === 'admin') {
+          try {
+            await signOut(auth);
+          } catch {}
+          throw new Error('Tài khoản Quản trị viên chỉ được cấp qua console');
+        }
+
+        // Người dùng lần đầu chọn Sinh viên hoặc Giảng viên thì tạo hồ sơ với đúng vai trò đó
+        const assignedRole: UserRole =
+          dto.selectedRole === 'lecturer' ? 'lecturer' : 'student';
+
+        const defaultCode =
+          assignedRole === 'lecturer'
+            ? 'VKU-GV-' + uid.substring(0, 6).toUpperCase()
+            : 'VKU-G' + uid.substring(0, 6).toUpperCase();
+
+        const defaultName =
+          firebaseUser.displayName?.trim() ||
+          (assignedRole === 'lecturer' ? 'Giảng viên VKU' : 'Sinh viên VKU');
+
         const newProfile = {
           uid,
-          name: firebaseUser.displayName?.trim() || 'Sinh viên VKU',
+          name: defaultName,
           email: firebaseUser.email?.trim().toLowerCase() || '',
-          role: 'student' as UserRole,
+          role: assignedRole,
           schoolName: DEFAULT_SCHOOL_NAME,
           department: 'Khoa Công nghệ Thông tin & Truyền thông',
           identifierCode: defaultCode,
           code: defaultCode,
           className: '',
           academicYear: '',
-          academicDegree: '',
+          academicDegree: assignedRole === 'lecturer' ? 'Thạc sĩ' : '',
           authProvider: 'google',
-          avatar: firebaseUser.photoURL || DEFAULT_AVATARS.student,
+          avatar: firebaseUser.photoURL || DEFAULT_AVATARS[assignedRole],
           createdAt: new Date().toISOString(),
         };
 
@@ -383,7 +436,7 @@ export class FirebaseAuthService implements AuthService {
           id: uid,
           name: newProfile.name,
           email: newProfile.email,
-          role: 'student',
+          role: assignedRole,
           schoolName: newProfile.schoolName,
           department: newProfile.department,
           identifierCode: newProfile.identifierCode,
@@ -396,6 +449,11 @@ export class FirebaseAuthService implements AuthService {
 
     // Luồng giả lập SSO cho Facebook
     const role = dto.mockUser.role;
+    if (dto.selectedRole && role !== dto.selectedRole) {
+      throw new Error(
+        `Tài khoản này thuộc vai trò ${getRoleLabel(role)}. Vui lòng chọn đúng vai trò để đăng nhập.`
+      );
+    }
     const identifierCode =
       dto.mockUser.identifierCode ||
       (role === 'student' ? '21IT2907' : role === 'lecturer' ? 'VKU-GV1024' : 'VKU-CB001');

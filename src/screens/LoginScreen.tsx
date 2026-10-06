@@ -96,6 +96,15 @@ export const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Bộ chọn vai trò đăng nhập (mặc định 'student', ghi nhớ trong state, dùng để đối chiếu)
+  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
+
+  const handleRoleSelect = (role: UserRole) => {
+    setSelectedRole(role);
+    if (error) clearError();
+    if (successMessage) setSuccessMessage(null);
+  };
+
   // Nhận email và thông báo thành công sau khi người dùng đăng ký từ RegisterScreen
   useEffect(() => {
     if (route.params?.registeredEmail) {
@@ -120,6 +129,7 @@ export const LoginScreen: React.FC = () => {
     await login({
       email: email.trim(),
       password,
+      selectedRole,
     });
   };
 
@@ -133,10 +143,11 @@ export const LoginScreen: React.FC = () => {
         // Trên web: mở popup Google thực tế qua Firebase JS SDK
         await loginWithProvider({
           provider: 'google',
+          selectedRole,
           mockUser: {
             name: '',
             email: '',
-            role: 'student',
+            role: selectedRole,
           },
         });
       } else {
@@ -165,6 +176,7 @@ export const LoginScreen: React.FC = () => {
     setSocialModalVisible(false);
     await loginWithProvider({
       provider: selectedProvider,
+      selectedRole,
       mockUser: {
         name: account.name,
         email: account.email,
@@ -248,6 +260,96 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.errorBannerText}>{error}</Text>
               </View>
             ) : null}
+
+            {/* Bộ chọn vai trò dạng 3 nút phân đoạn (Sinh viên / Giảng viên / Quản trị viên) */}
+            <View style={styles.roleSegmentGroup}>
+              <Text style={styles.roleSegmentLabel}>Vai trò đăng nhập</Text>
+              <View style={styles.segmentedControl}>
+                {/* Sinh viên */}
+                <TouchableOpacity
+                  style={[
+                    styles.segmentBtn,
+                    selectedRole === 'student' && styles.segmentBtnActive,
+                  ]}
+                  onPress={() => handleRoleSelect('student')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="person"
+                    size={15}
+                    color={
+                      selectedRole === 'student'
+                        ? theme.colors.primary
+                        : theme.colors.textMuted
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      selectedRole === 'student' && styles.segmentBtnTextActive,
+                    ]}
+                  >
+                    Sinh viên
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Giảng viên */}
+                <TouchableOpacity
+                  style={[
+                    styles.segmentBtn,
+                    selectedRole === 'lecturer' && styles.segmentBtnActive,
+                  ]}
+                  onPress={() => handleRoleSelect('lecturer')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="school"
+                    size={15}
+                    color={
+                      selectedRole === 'lecturer'
+                        ? theme.colors.primary
+                        : theme.colors.textMuted
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      selectedRole === 'lecturer' && styles.segmentBtnTextActive,
+                    ]}
+                  >
+                    Giảng viên
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Quản trị viên */}
+                <TouchableOpacity
+                  style={[
+                    styles.segmentBtn,
+                    selectedRole === 'admin' && styles.segmentBtnActive,
+                  ]}
+                  onPress={() => handleRoleSelect('admin')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="shield-checkmark"
+                    size={15}
+                    color={
+                      selectedRole === 'admin'
+                        ? theme.colors.primary
+                        : theme.colors.textMuted
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      selectedRole === 'admin' && styles.segmentBtnTextActive,
+                    ]}
+                  >
+                    Quản trị viên
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             {/* Ô nhập Email */}
             <View style={styles.inputGroup}>
@@ -585,6 +687,47 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.dangerDark,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  roleSegmentGroup: {
+    marginBottom: theme.spacing.lg,
+  },
+  roleSegmentLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: theme.borderRadius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: theme.borderRadius.sm,
+    gap: 5,
+  },
+  segmentBtnActive: {
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  segmentBtnText: {
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.textSecondary,
+  },
+  segmentBtnTextActive: {
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary,
   },
   inputGroup: {
     marginBottom: theme.spacing.md,

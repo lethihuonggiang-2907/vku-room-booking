@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import { User } from '../../types';
+import { User, UserRole } from '../../types';
 import {
   AuthService,
   LoginDTO,
@@ -12,6 +12,7 @@ import {
 import {
   ADMIN_INVITE_CODE,
   DEFAULT_SCHOOL_NAME,
+  getRoleLabel,
 } from '../../constants/authConstants';
 
 /**
@@ -218,6 +219,13 @@ export class LocalAuthService implements AuthService {
       throw new Error('Tài khoản hoặc mật khẩu không chính xác.');
     }
 
+    // Đối chiếu vai trò đã chọn
+    if (dto.selectedRole && foundRecord.user.role !== dto.selectedRole) {
+      throw new Error(
+        `Tài khoản này thuộc vai trò ${getRoleLabel(foundRecord.user.role)}. Vui lòng chọn đúng vai trò để đăng nhập.`
+      );
+    }
+
     // Lưu phiên
     await this.saveSessionUserId(foundRecord.user.id);
     return foundRecord.user;
@@ -236,24 +244,44 @@ export class LocalAuthService implements AuthService {
     );
 
     if (existing) {
+      // Đối chiếu vai trò đã chọn
+      if (dto.selectedRole && existing.user.role !== dto.selectedRole) {
+        throw new Error(
+          `Tài khoản này thuộc vai trò ${getRoleLabel(existing.user.role)}. Vui lòng chọn đúng vai trò để đăng nhập.`
+        );
+      }
       // Đã có tài khoản tương ứng, lưu phiên và đăng nhập
       await this.saveSessionUserId(existing.user.id);
       return existing.user;
     }
 
-    // Nếu chưa có, tạo tài khoản mới từ tài khoản mock của Provider
+    // Nếu chưa có tài khoản:
+    if (dto.selectedRole === 'admin') {
+      throw new Error('Tài khoản Quản trị viên chỉ được cấp qua console');
+    }
+
+    const assignedRole: UserRole =
+      dto.selectedRole === 'lecturer'
+        ? 'lecturer'
+        : dto.selectedRole === 'student'
+        ? 'student'
+        : dto.mockUser.role;
+
+    // Tạo tài khoản mới từ tài khoản mock của Provider
     const newId = dto.mockUser.id || `usr-${dto.provider}-${Date.now()}`;
     const identifierCode =
       dto.mockUser.identifierCode ||
-      (dto.mockUser.role === 'student'
+      (assignedRole === 'student'
         ? '22IT' + Math.floor(1000 + Math.random() * 9000)
         : 'VKU-ID' + Math.floor(100 + Math.random() * 900));
 
     const newUser: User = {
       id: newId,
-      name: dto.mockUser.name,
+      name:
+        dto.mockUser.name ||
+        (assignedRole === 'lecturer' ? 'Giảng viên VKU' : 'Sinh viên VKU'),
       email: normalizedEmail,
-      role: dto.mockUser.role,
+      role: assignedRole,
       schoolName: DEFAULT_SCHOOL_NAME,
       department: dto.mockUser.department || 'Khoa Công nghệ Thông tin & Truyền thông',
       identifierCode,
@@ -264,7 +292,7 @@ export class LocalAuthService implements AuthService {
       authProvider: dto.provider,
       avatar:
         dto.mockUser.avatar ||
-        DEFAULT_AVATARS[dto.mockUser.role] ||
+        DEFAULT_AVATARS[assignedRole] ||
         DEFAULT_AVATARS.student,
     };
 

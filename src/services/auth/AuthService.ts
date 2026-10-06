@@ -18,10 +18,12 @@ export interface RegisterDTO {
 export interface LoginDTO {
   email: string;
   password: string;
+  selectedRole?: UserRole;
 }
 
 export interface ProviderLoginDTO {
   provider: 'google' | 'facebook';
+  selectedRole?: UserRole;
   mockUser: {
     id?: string;
     email: string;

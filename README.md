@@ -154,16 +154,25 @@ npx expo start --tunnel -c
 2. Mở Công cụ phát triển trình duyệt (F12) > Bật chế độ Responsive Device Toolbar > Chọn thiết bị **iPhone 12/13/14/15 Pro (390 x 844)**.
 3. Quan sát và kiểm tra xác thực:
    - Huy hiệu `Chế độ: Firebase Cloud` (hoặc `Chế độ demo/offline`) hiển thị rõ ràng trên màn hình.
-   - **Đăng nhập Quản trị viên:** Nhập email `admin@vku.udn.vn` và mật khẩu đã tạo trên Firebase Console trực tiếp qua form Đăng nhập (không dùng nút demo).
+   - **Bộ chọn vai trò đăng nhập (Segmented Control):**
+     - Màn hình Đăng nhập có 3 nút phân đoạn phía trên ô email: **Sinh viên** (mặc định) / **Giảng viên** / **Quản trị viên**.
+     - Vai trò được chọn chỉ dùng để **đối chiếu**, không bao giờ được dùng để tự gán quyền admin.
+     - Nếu đăng nhập bằng tài khoản có vai trò khác vai trò đang chọn (ví dụ: tài khoản admin nhưng lại chọn tab Sinh viên), hệ thống sẽ tự động `signOut()` và thông báo lỗi rõ ràng: *"Tài khoản này thuộc vai trò Quản trị viên. Vui lòng chọn đúng vai trò để đăng nhập."*
+   - **Đăng nhập Quản trị viên:**
+     1. Bấm chọn phân đoạn **"Quản trị viên"**.
+     2. Nhập email `admin@vku.udn.vn` và mật khẩu đã tạo trên Firebase Console.
+     3. Nhấn **Đăng nhập** -> Thành công và chuyển vào giao diện Quản trị viên.
    - **Đăng ký tài khoản mới:**
      - Nhấn "Đăng ký ngay", điền thông tin và nhấn "Đăng ký tài khoản".
      - Hệ thống **không tự đăng nhập** mà chuyển hướng trở lại màn hình Đăng nhập.
      - Email vừa đăng ký được điền sẵn, mật khẩu để trống, kèm thông báo thành công màu xanh lá: *"Đăng ký thành công! Vui lòng đăng nhập để tiếp tục."*
    - **Đăng nhập Google thật (Chỉ nền tảng Web):**
      - Nhấn nút biểu tượng **Google**. Cửa sổ popup Google sẽ xuất hiện.
-     - Chọn tài khoản Google để đăng nhập. Khi thành công, ứng dụng tự động chuyển vào màn hình chính.
-     - Nếu là lần đầu tiên đăng nhập, hệ thống tự động khởi tạo hồ sơ sinh viên (`role: 'student'`) trên Cloud Firestore.
-     - Nếu tài khoản đã tồn tại trên Firestore (kể cả đã được nâng quyền admin), hệ thống giữ nguyên vai trò cũ.
+     - **Nếu là lần đầu đăng nhập:**
+       - Nếu đang chọn tab **Sinh viên**: Tạo hồ sơ với `role: 'student'`.
+       - Nếu đang chọn tab **Giảng viên**: Tạo hồ sơ với `role: 'lecturer'`.
+       - Nếu đang chọn tab **Quản trị viên**: Hệ thống từ chối và báo lỗi *"Tài khoản Quản trị viên chỉ được cấp qua console"*.
+     - **Nếu tài khoản Google đã có hồ sơ từ trước:** Hệ thống đối chiếu vai trò đã chọn với vai trò trong cơ sở dữ liệu (giữ nguyên vai trò, không ghi đè). Nếu khớp thì vào app bình thường, nếu sai thì `signOut()` và yêu cầu chọn đúng vai trò.
 
 ### 3. Kiểm thử trên iPhone (iOS) & Android:
 1. Mở ứng dụng **Expo Go** trên điện thoại.
