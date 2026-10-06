@@ -16,6 +16,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { RoomDetailScreen } from '../screens/RoomDetailScreen';
 import { QRCodeModalScreen } from '../screens/QRCodeModalScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { AdminScreen } from '../screens/AdminScreen';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNotificationLifecycle } from '../hooks/useNotificationLifecycle';
 import { theme } from '../theme';
@@ -78,6 +79,8 @@ const handleTabPress = () => {
  */
 export const MainTabs: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === 'admin';
 
   return (
     <Tab.Navigator
@@ -128,6 +131,24 @@ export const MainTabs: React.FC = () => {
           ),
         }}
       />
+      {isAdmin && (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminScreen}
+          listeners={{ tabPress: handleTabPress }}
+          options={{
+            tabBarLabel: 'Quản lý',
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon
+                name="shield-checkmark"
+                outlineName="shield-checkmark-outline"
+                focused={focused}
+                color={color}
+              />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="ProfileTab"
         component={ProfileScreen}
