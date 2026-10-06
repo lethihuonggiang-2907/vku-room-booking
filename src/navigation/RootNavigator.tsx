@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,19 +7,23 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, MainTabParamList } from '../types';
+import { RootStackParamList, MainTabParamList, AuthStackParamList } from '../types';
+import { LoginScreen } from '../screens/LoginScreen';
+import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MyBookingsScreen } from '../screens/MyBookingsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RoomDetailScreen } from '../screens/RoomDetailScreen';
 import { QRCodeModalScreen } from '../screens/QRCodeModalScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { useAuthStore } from '../store/useAuthStore';
 import { useNotificationLifecycle } from '../hooks/useNotificationLifecycle';
 import { theme } from '../theme';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 interface AnimatedTabIconProps {
@@ -69,7 +73,10 @@ const handleTabPress = () => {
   }
 };
 
-const MainTabs: React.FC = () => {
+/**
+ * Tab Navigator chính của người dùng đã xác thực
+ */
+export const MainTabs: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -141,9 +148,53 @@ const MainTabs: React.FC = () => {
   );
 };
 
+/**
+ * Auth Navigator dành cho người dùng chưa đăng nhập
+ */
+const AuthNavigator: React.FC = () => {
+  return (
+    <AuthStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+        animationDuration: 280,
+      }}
+    >
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Register" component={RegisterScreen} />
+    </AuthStack.Navigator>
+  );
+};
+
 export const RootNavigator: React.FC = () => {
+  const { user, isRestoringSession, restoreSession } = useAuthStore();
+
+  // Khôi phục phiên làm việc an toàn từ SecureStore / AsyncStorage khi app khởi động
+  useEffect(() => {
+    restoreSession();
+  }, [restoreSession]);
+
   // Đồng bộ nhắc nhở check-in khi app mở và lắng nghe thông báo hệ thống
   useNotificationLifecycle();
+
+  // Màn hình chờ ngắn lúc khôi phục phiên (Splash loader)
+  if (isRestoringSession) {
+    return (
+      <View style={styles.splashContainer}>
+        <View style={styles.splashBadge}>
+          <Text style={styles.splashBadgeText}>VKU</Text>
+        </View>
+        <Text style={styles.splashTitle}>VKU Room Booking</Text>
+        <Text style={styles.splashSubtitle}>Trường ĐH CNTT & TT Việt - Hàn</Text>
+        <ActivityIndicator
+          size="small"
+          color={theme.colors.primary}
+          style={{ marginTop: 28 }}
+        />
+        <Text style={styles.splashLoadingText}>Đang kiểm tra phiên đăng nhập...</Text>
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -156,31 +207,39 @@ export const RootNavigator: React.FC = () => {
           fullScreenGestureEnabled: true,
         }}
       >
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen
-          name="RoomDetail"
-          component={RoomDetailScreen}
-          options={{
-            animation: 'slide_from_right',
-            animationDuration: 280,
-          }}
-        />
-        <Stack.Screen
-          name="QRCodeModal"
-          component={QRCodeModalScreen}
-          options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
-            animationDuration: 320,
-          }}
-        />
-        <Stack.Screen
-          name="Notifications"
-          component={NotificationsScreen}
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
+        {!user ? (
+          // Chưa đăng nhập -> Chỉ thấy AuthStack (Đăng nhập, Đăng ký)
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : (
+          // Đã đăng nhập -> Thấy luồng chính
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen
+              name="RoomDetail"
+              component={RoomDetailScreen}
+              options={{
+                animation: 'slide_from_right',
+                animationDuration: 280,
+              }}
+            />
+            <Stack.Screen
+              name="QRCodeModal"
+              component={QRCodeModalScreen}
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+                animationDuration: 320,
+              }}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -201,5 +260,41 @@ const styles = StyleSheet.create({
   tabBarItem: {
     minHeight: theme.minTouchTarget,
     paddingVertical: 2,
+  },
+  splashContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.xl,
+  },
+  splashBadge: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.md,
+  },
+  splashBadgeText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.xxl,
+    fontWeight: theme.typography.fontWeight.heavy,
+    letterSpacing: 3,
+  },
+  splashTitle: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary,
+  },
+  splashSubtitle: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  splashLoadingText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 10,
   },
 });
