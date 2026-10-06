@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { RootStackParamList, Room, TimeSlotId } from '../types';
 import { useBookingStore } from '../store/useBookingStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { useNotifications } from '../hooks/useNotifications';
 import { fetchRoomsApi } from '../api/roomApi';
 import { getCurrentSlotId, isToday } from '../utils/dateUtils';
@@ -46,8 +47,10 @@ export const HomeScreen: React.FC = () => {
     queryFn: fetchRoomsApi,
   });
 
-  // Zustand Store: Quản lý trạng thái client (phiên, bộ lọc, lượt đặt)
-  const currentUser = useBookingStore((state) => state.currentUser);
+  // Zustand Store: Quản lý người dùng từ useAuthStore đồng bộ sang useBookingStore
+  const authUser = useAuthStore((state) => state.user);
+  const bookingUser = useBookingStore((state) => state.currentUser);
+  const currentUser = authUser || bookingUser;
   const filters = useBookingStore((state) => state.filters);
   const setSearchQuery = useBookingStore((state) => state.setSearchQuery);
   const setSelectedBuilding = useBookingStore((state) => state.setSelectedBuilding);
