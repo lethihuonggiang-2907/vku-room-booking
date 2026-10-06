@@ -17,7 +17,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, UserRole } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
-import { getRoleLabel } from '../constants/authConstants';
+import { getRoleLabel, DEFAULT_SCHOOL_NAME } from '../constants/authConstants';
+import { isAuthFirebaseMode } from '../services/auth';
 import { theme } from '../theme';
 
 type LoginNavProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -84,7 +85,8 @@ const MOCK_FACEBOOK_ACCOUNTS: MockSocialAccount[] = [
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginNavProp>();
-  const { login, loginWithProvider, isLoading, error, clearError } = useAuthStore();
+  const { login, register, loginWithProvider, isLoading, error, clearError } = useAuthStore();
+  const isFirebaseMode = isAuthFirebaseMode();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -109,18 +111,53 @@ export const LoginScreen: React.FC = () => {
   // Nút đăng nhập nhanh tài khoản demo phục vụ quay video báo cáo
   const handleQuickDemoLogin = async (role: UserRole) => {
     clearError();
+
     if (role === 'student') {
       setEmail('giang.lth@vku.udn.vn');
       setPassword('Demo@123456');
-      await login({ email: 'giang.lth@vku.udn.vn', password: 'Demo@123456' });
+      const ok = await login({ email: 'giang.lth@vku.udn.vn', password: 'Demo@123456' });
+      // Ở chế độ Firebase, tự động tạo tài khoản demo Sinh viên nếu chưa tồn tại
+      if (!ok && isFirebaseMode) {
+        await register({
+          name: 'Lê Thị Hương Giang',
+          email: 'giang.lth@vku.udn.vn',
+          password: 'Demo@123456',
+          role: 'student',
+          schoolName: DEFAULT_SCHOOL_NAME,
+          department: 'Khoa Công nghệ Thông tin & Truyền thông',
+          identifierCode: '21IT2907',
+          className: '21IT1',
+          academicYear: '2021 - 2026',
+        });
+      }
     } else if (role === 'lecturer') {
       setEmail('hung.nv@vku.udn.vn');
       setPassword('Demo@123456');
-      await login({ email: 'hung.nv@vku.udn.vn', password: 'Demo@123456' });
+      const ok = await login({ email: 'hung.nv@vku.udn.vn', password: 'Demo@123456' });
+      // Ở chế độ Firebase, tự động tạo tài khoản demo Giảng viên nếu chưa tồn tại
+      if (!ok && isFirebaseMode) {
+        await register({
+          name: 'TS. Nguyễn Văn Hùng',
+          email: 'hung.nv@vku.udn.vn',
+          password: 'Demo@123456',
+          role: 'lecturer',
+          schoolName: DEFAULT_SCHOOL_NAME,
+          department: 'Khoa Khoa học Máy tính',
+          identifierCode: 'VKU-GV1024',
+          academicDegree: 'Tiến sĩ',
+        });
+      }
     } else {
       setEmail('admin@vku.udn.vn');
       setPassword('Demo@123456');
-      await login({ email: 'admin@vku.udn.vn', password: 'Demo@123456' });
+      const ok = await login({ email: 'admin@vku.udn.vn', password: 'Demo@123456' });
+      // Ở chế độ Firebase, tài khoản admin chỉ đăng nhập vào tài khoản do người dùng tự tạo trên console
+      if (!ok && isFirebaseMode) {
+        useAuthStore.setState({
+          error:
+            'Tài khoản Quản trị viên (admin@vku.udn.vn) chưa tồn tại trên Firebase. Vui lòng tạo tài khoản trên Firebase Console và gán vai trò "admin" trong collection users theo hướng dẫn README.',
+        });
+      }
     }
   };
 
@@ -171,6 +208,30 @@ export const LoginScreen: React.FC = () => {
             <Text style={styles.appSubtitle}>
               Cổng Đăng nhập Hệ thống Đặt phòng học thông minh
             </Text>
+
+            {/* Ghi chú hiển thị chế độ hệ thống: Firebase Cloud hoặc Demo / Offline */}
+            <View style={styles.modeBadgeWrapper}>
+              <View
+                style={[
+                  styles.modeBadge,
+                  isFirebaseMode ? styles.modeBadgeFirebase : styles.modeBadgeOffline,
+                ]}
+              >
+                <Ionicons
+                  name={isFirebaseMode ? 'cloud-done-outline' : 'hardware-chip-outline'}
+                  size={14}
+                  color={isFirebaseMode ? '#047857' : '#B45309'}
+                />
+                <Text
+                  style={[
+                    styles.modeBadgeText,
+                    isFirebaseMode ? styles.modeBadgeTextFirebase : styles.modeBadgeTextOffline,
+                  ]}
+                >
+                  {isFirebaseMode ? 'Chế độ Firebase Cloud' : 'Chế độ demo/offline'}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Card Đăng nhập */}
@@ -486,6 +547,37 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 4,
     textAlign: 'center',
+  },
+  modeBadgeWrapper: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  modeBadgeFirebase: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  modeBadgeOffline: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  modeBadgeText: {
+    fontSize: 11,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  modeBadgeTextFirebase: {
+    color: '#047857',
+  },
+  modeBadgeTextOffline: {
+    color: '#B45309',
   },
   card: {
     backgroundColor: theme.colors.surface,

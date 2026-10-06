@@ -17,6 +17,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, UserRole } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
+import { isAuthFirebaseMode } from '../services/auth';
 import {
   DEFAULT_SCHOOL_NAME,
   DEFAULT_EMAIL_DOMAIN,
@@ -34,9 +35,12 @@ export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterNavProp>();
   const route = useRoute<RegisterRouteProp>();
   const { register, isLoading, error, clearError } = useAuthStore();
+  const isFirebaseMode = isAuthFirebaseMode();
 
-  // 1. Vai trò (Mặc định là sinh viên, hoặc nhận từ params)
-  const [role, setRole] = useState<UserRole>(route.params?.initialRole || 'student');
+  // 1. Vai trò (Mặc định là sinh viên; ở chế độ Firebase ẩn và không cho chọn admin)
+  const initialRole = route.params?.initialRole;
+  const defaultRole = isFirebaseMode && initialRole === 'admin' ? 'student' : (initialRole || 'student');
+  const [role, setRole] = useState<UserRole>(defaultRole);
 
   // 2. Các trường chung
   const [name, setName] = useState('');
@@ -119,8 +123,8 @@ export const RegisterScreen: React.FC = () => {
       }
     }
 
-    // Quản trị viên: Mã mời
-    if (role === 'admin') {
+    // Quản trị viên: Mã mời (chỉ áp dụng ở chế độ cục bộ / offline)
+    if (!isFirebaseMode && role === 'admin') {
       if (!adminInviteCode.trim()) {
         errors.adminInviteCode = `Vui lòng nhập mã mời quản trị (Mã demo: ${ADMIN_INVITE_CODE})`;
       } else if (adminInviteCode.trim() !== ADMIN_INVITE_CODE) {
@@ -145,7 +149,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     return errors;
-  }, [name, email, identifierCode, role, className, adminInviteCode, password, confirmPassword]);
+  }, [name, email, identifierCode, role, className, adminInviteCode, password, confirmPassword, isFirebaseMode]);
 
   // Form hợp lệ khi không còn bất kỳ lỗi nào
   const isFormValid = Object.keys(validationErrors).length === 0;
@@ -163,6 +167,11 @@ export const RegisterScreen: React.FC = () => {
       confirmPassword: true,
     });
 
+    if (isFirebaseMode && role === 'admin') {
+      clearError();
+      return;
+    }
+
     if (!isFormValid) return;
 
     clearError();
@@ -177,7 +186,7 @@ export const RegisterScreen: React.FC = () => {
       className: role === 'student' ? className.trim() : undefined,
       academicYear: role === 'student' ? academicYear : undefined,
       academicDegree: role === 'lecturer' ? academicDegree || undefined : undefined,
-      adminInviteCode: role === 'admin' ? adminInviteCode.trim() : undefined,
+      adminInviteCode: !isFirebaseMode && role === 'admin' ? adminInviteCode.trim() : undefined,
     });
   };
 
@@ -292,45 +301,57 @@ export const RegisterScreen: React.FC = () => {
                 )}
               </TouchableOpacity>
 
-              {/* Thẻ Quản trị viên */}
-              <TouchableOpacity
-                style={[
-                  styles.roleCard,
-                  role === 'admin' && styles.roleCardActive,
-                ]}
-                onPress={() => {
-                  setRole('admin');
-                  clearError();
-                }}
-                activeOpacity={0.8}
-              >
-                <View
+              {/* Thẻ Quản trị viên (Chỉ hiển thị ở chế độ cục bộ / offline) */}
+              {!isFirebaseMode && (
+                <TouchableOpacity
                   style={[
-                    styles.roleIconBox,
-                    role === 'admin' && styles.roleIconBoxActive,
+                    styles.roleCard,
+                    role === 'admin' && styles.roleCardActive,
                   ]}
+                  onPress={() => {
+                    setRole('admin');
+                    clearError();
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name="shield-checkmark"
-                    size={20}
-                    color={role === 'admin' ? theme.colors.white : theme.colors.dangerDark}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.roleCardTitle,
-                    role === 'admin' && styles.roleCardTitleActive,
-                  ]}
-                >
-                  Quản trị viên
-                </Text>
-                {role === 'admin' && (
-                  <View style={styles.activeCheckmark}>
-                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                  <View
+                    style={[
+                      styles.roleIconBox,
+                      role === 'admin' && styles.roleIconBoxActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={20}
+                      color={role === 'admin' ? theme.colors.white : theme.colors.dangerDark}
+                    />
                   </View>
-                )}
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.roleCardTitle,
+                      role === 'admin' && styles.roleCardTitleActive,
+                    ]}
+                  >
+                    Quản trị viên
+                  </Text>
+                  {role === 'admin' && (
+                    <View style={styles.activeCheckmark}>
+                      <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
+
+            {/* Ghi chú khi ở chế độ Firebase: Quản trị viên chỉ được phân quyền từ Firebase Console */}
+            {isFirebaseMode && (
+              <View style={styles.firebaseAdminNotice}>
+                <Ionicons name="shield-checkmark-outline" size={16} color="#0369A1" />
+                <Text style={styles.firebaseAdminNoticeText}>
+                  Chế độ Firebase: Tài khoản Quản trị viên được phân quyền trực tiếp qua Firebase Console, không cho phép tự đăng ký qua ứng dụng.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Card Form Thông tin chi tiết */}
@@ -554,8 +575,8 @@ export const RegisterScreen: React.FC = () => {
               </>
             )}
 
-            {/* 3. QUẢN TRỊ VIÊN: Mã cán bộ, Mã mời */}
-            {role === 'admin' && (
+            {/* 3. QUẢN TRỊ VIÊN: Mã cán bộ, Mã mời (Chỉ dùng ở chế độ cục bộ / offline) */}
+            {role === 'admin' && !isFirebaseMode && (
               <>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Mã cán bộ quản trị *</Text>
@@ -888,6 +909,24 @@ const styles = StyleSheet.create({
   roleCardsRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  firebaseAdminNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 10,
+    gap: 8,
+  },
+  firebaseAdminNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#1E40AF',
+    lineHeight: 16,
   },
   roleCard: {
     flex: 1,
